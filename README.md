@@ -113,9 +113,10 @@ paper. Format is where pages are the job, so that is where the real space is
 shown. Pagination is the same either way: a break ends its page because it is
 a break, not because of how tall it is.
 
-**Hide Comments** in the toolbar puts the notes away — the rail, the
-highlights, and the button that makes a new one. Hidden comments mean you are
-writing rather than annotating.
+Edit starts with the comments away. **Show Comments** in the toolbar brings
+them back — the rail, the highlights, and the button that makes a new one —
+and **Hide Comments** puts them away again. Edit is where you are writing
+rather than annotating, so the notes wait until you ask for them.
 
 You can type markdown at it and get the thing itself. The markup never
 survives: it is swapped for real formatting the moment you finish it, and

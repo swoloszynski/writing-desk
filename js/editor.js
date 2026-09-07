@@ -19,8 +19,17 @@ const KEEP_CLASS = new Set(['wd-caption', 'wd-noindent', 'wd-break']);
  * would quietly break the promise that the settings panel controls the page.
  */
 export function sanitize(html) {
-  const box = document.createElement('div');
-  box.innerHTML = html;
+  // Parsed into an inert document, and this is the part that matters.
+  //
+  // Assigning to `innerHTML` on a detached <div> still belongs to the live
+  // document, and a browser starts fetching an <img src> the moment the
+  // element exists — so `<img src=x onerror=...>` fires while it is being
+  // cleaned, and the sanitiser becomes the thing that runs the payload. A
+  // document from DOMParser has no browsing context: nothing loads, nothing
+  // executes, and the markup can be taken apart safely before any of it
+  // reaches the page.
+  const inert = new DOMParser().parseFromString(html, 'text/html');
+  const box = inert.body;
 
   const walk = node => {
     for (const child of Array.from(node.childNodes)) {
@@ -49,7 +58,7 @@ export function sanitize(html) {
 
       if (!BLOCK_TAGS.has(tag) && !INLINE_KEEP.has(tag)) {
         // Unwrap rather than delete, so the words inside survive.
-        const frag = document.createDocumentFragment();
+        const frag = inert.createDocumentFragment();
         while (child.firstChild) frag.appendChild(child.firstChild);
         child.replaceWith(frag);
         walk(node);
@@ -62,7 +71,7 @@ export function sanitize(html) {
 
       // A bare DIV from a paste is a paragraph in everything but name.
       if (tag === 'DIV' && !cls.includes('wd-break')) {
-        const p = document.createElement('p');
+        const p = inert.createElement('p');
         while (child.firstChild) p.appendChild(child.firstChild);
         child.replaceWith(p);
         walk(p);
@@ -76,14 +85,16 @@ export function sanitize(html) {
   walk(box);
 
   // Top level must be blocks: loose text from a paste gets a paragraph.
-  const out = document.createElement('div');
+  // Built inside the inert document too, so nothing crosses into the live
+  // one until every attribute has been stripped.
+  const out = inert.createElement('div');
   let run = null;
   for (const child of Array.from(box.childNodes)) {
     const isBlock = child.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has(child.tagName);
     if (isBlock) { run = null; out.appendChild(child); }
     else {
       if (child.nodeType === Node.TEXT_NODE && !/\S/.test(child.data)) continue;
-      if (!run) { run = document.createElement('p'); out.appendChild(run); }
+      if (!run) { run = inert.createElement('p'); out.appendChild(run); }
       run.appendChild(child);
     }
   }

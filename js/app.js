@@ -303,14 +303,17 @@ function reanchorAll() {
   }
 }
 
+/** Whether Edit has been asked for the notes. Absent means no. */
+const notesOn = () => doc.settings.showComments === true;
+
 /** Comment is always annotating; Edit only when you have asked it to. */
-const notesShown = () => view === 'comment' || doc.settings.showComments !== false;
+const notesShown = () => view === 'comment' || notesOn();
 
 /** Where the thread cards for the current stage live. */
 const threadHost = () => (view === 'comment' ? '#thread-list' : '#edit-thread-list');
 
 function paintNotesToggle() {
-  const on = doc.settings.showComments !== false;
+  const on = notesOn();
   $('#toggle-notes').classList.toggle('is-on', on);
   // The button says what pressing it does, not what the state is.
   $('#toggle-notes-label').textContent = on ? 'Hide Comments' : 'Show Comments';
@@ -1290,7 +1293,7 @@ function bindToolbar() {
   $('#add-section').addEventListener('click', addSection);
   $('#add-section-2').addEventListener('click', addSection);
   $('#toggle-notes').addEventListener('click', () => {
-    doc.settings.showComments = doc.settings.showComments === false;
+    doc.settings.showComments = !notesOn();
     save();
     paintNotesToggle();
     paintMarks();
@@ -1440,6 +1443,7 @@ async function openCopy(file) {
     }
 
     const restored = await Doc.deserialize(parsed);
+    restored.sections = sectionsFromOutside(restored.sections);
     if (!await ask({
       title: `Open “${restored.title}”?`,
       body: 'This replaces what is open now. Save a copy first if you have not.',
@@ -1582,6 +1586,22 @@ function onSettingChange(field) {
 // Reading somebody else's draft
 // ---------------------------------------------------------------------------
 
+/**
+ * Sections that came from somewhere other than this browser.
+ *
+ * A shared link and a file somebody sent are both markup written by whoever
+ * built them, and it goes straight into the page with `innerHTML`. A `<script>`
+ * tag will not run that way, but an element carrying an event handler will —
+ * and it would be running on this origin, with the reader's own document in
+ * localStorage sitting next to it. Everything from outside is cleaned first.
+ */
+function sectionsFromOutside(sections) {
+  return (sections || []).map(section => ({
+    ...Doc.normalizeSection(section),
+    html: sanitize(section.html || ''),
+  }));
+}
+
 function enterReview(payload) {
   reviewing = true;
   document.body.classList.add('is-reviewing');
@@ -1594,7 +1614,7 @@ function enterReview(payload) {
     settings: JSON.parse(JSON.stringify(payload.settings || Doc.defaultSettings())),
     draft: Doc.defaultDraft(),
     comments: (payload.comments || []).map(Doc.normalizeComment),
-    sections: (payload.sections || []).map(Doc.normalizeSection),
+    sections: sectionsFromOutside(payload.sections),
     sampleIntact: false,
   });
 

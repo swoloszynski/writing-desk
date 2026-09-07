@@ -69,9 +69,10 @@ export function defaultSettings() {
 
     draft: { sound: false, focus: true, goal: 0, panel: true },
 
-    // Whether Edit shows the comments beside the writing. Comment always
-    // does, whatever this says.
-    showComments: true,
+    // Whether Edit shows the comments beside the writing. Off to begin with:
+    // Edit is for writing, and the notes are there when you ask for them.
+    // Comment always shows them, whatever this says.
+    showComments: false,
   };
 }
 
