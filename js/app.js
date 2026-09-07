@@ -312,7 +312,9 @@ const threadHost = () => (view === 'comment' ? '#thread-list' : '#edit-thread-li
 function paintNotesToggle() {
   const on = doc.settings.showComments !== false;
   $('#toggle-notes').classList.toggle('is-on', on);
-  $('#toggle-notes-label').textContent = on ? 'Comments' : 'Comments off';
+  // The button says what pressing it does, not what the state is.
+  $('#toggle-notes-label').textContent = on ? 'Hide Comments' : 'Show Comments';
+  $('#toggle-notes').title = on ? 'Hide comments' : 'Show comments';
   $('#edit-notes').hidden = !on;
   marks.hidden = !notesShown();
 }
