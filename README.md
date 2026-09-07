@@ -105,6 +105,18 @@ so a page is not a thing that can hold a position. Sections reorder; pages
 fall where the text puts them. Ticking **Start on a new page** begins a
 section at the top of a fresh sheet, and `⌘↵` drops a break anywhere else.
 
+A page break shows here as a small gap with a rule through it rather than as
+the whole unused rest of the page. Drawing the real space was truthful and it
+read badly — half a page of nothing in the middle of the column you are
+writing in cuts the thread, and you end up scrolling past your own blank
+paper. Format is where pages are the job, so that is where the real space is
+shown. Pagination is the same either way: a break ends its page because it is
+a break, not because of how tall it is.
+
+**Comments** in the toolbar puts the notes away — the rail, the highlights,
+and the button that makes a new one. Hidden comments mean you are writing
+rather than annotating.
+
 You can type markdown at it and get the thing itself. The markup never
 survives: it is swapped for real formatting the moment you finish it, and
 nothing is stored as markdown.
@@ -129,9 +141,27 @@ the importer's job.
 
 ## Comment
 
-Send the piece to someone. They read it in their browser, highlight passages,
-leave notes, and send the notes back. Nothing goes to a server, and there is
-no account at either end.
+The document, read-only, with somewhere to put remarks about it. Select any
+passage and leave a note; the notes stack up in the rail on the right, and
+each one is anchored to the words it was written about.
+
+It is the same stage whether the reader is you or somebody else. Reviewing
+your own draft is not a different act from reviewing a friend's, and the only
+thing that changes is who is holding it — so self-review and shared review are
+one screen rather than two.
+
+What it does not have is what makes it a separate stage from Edit: no sections
+rail, no block styles, no bold. You are reading, and the only thing you can
+change is what you have to say.
+
+The galley you are looking at is the real one, moved across from Edit rather
+than copied. There is exactly one laid-out copy of the document in this
+application; a second rendering would be a second set of line breaks, and a
+note anchored against the wrong one.
+
+**Sending it out**: they read it in their browser, highlight passages, leave
+notes, and send the notes back. Nothing goes to a server, and there is no
+account at either end.
 
 ### How a link with no server in it works
 
@@ -301,6 +331,10 @@ where you left it rather than at whichever stage happens to be second.
 
 Storage is per-origin, so work done on `localhost` does not follow you to a
 deployed copy.
+
+Whether Edit is showing the comments is kept with the document too, since it
+is a fact about how you are working on that piece rather than a preference
+that should follow you into the next one.
 
 Every question the application asks — deleting a section, throwing a document
 away, opening a file over the top of one — is asked in the page rather than
