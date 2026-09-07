@@ -185,8 +185,8 @@
 
       <div class="stage">
         <div class="toolbar">
-          <strong class="tlabel">Comments</strong>
-          <span class="hint" id="comment-count"></span>
+          <strong class="tlabel">Comment</strong>
+          <span class="hint">Reading only. Select any passage to leave a note on it.</span>
           <div class="spacer"></div>
           <div class="seg" id="comment-filter">
             <button data-filter="open" class="is-on">Open</button>
@@ -194,10 +194,20 @@
             <button data-filter="all">All</button>
           </div>
         </div>
-        <div class="grid-wrap">
-          <div class="thread-list" id="thread-list"></div>
-        </div>
+
+        <!-- The galley moves in here while this stage is on. There is one
+             laid-out copy of the document and this is its other home; see
+             holdGalley() in js/app.js. -->
+        <div class="canvas" id="comment-canvas"></div>
       </div>
+
+      <aside class="rail right">
+        <div class="rail-head">
+          <span>Notes</span>
+          <span class="hint" id="comment-count"></span>
+        </div>
+        <div class="thread-list is-compact" id="thread-list"></div>
+      </aside>
     </section>
 
     <!-- ----------------------------------------------------------- FORMAT -->

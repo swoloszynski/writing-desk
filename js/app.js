@@ -200,7 +200,7 @@ function sectionCard(s) {
   nu.checked = s.startsNewPage;
   nu.addEventListener('change', () => {
     s.startsNewPage = nu.checked;
-    editor.render();
+    renderGalley();
     renderSectionLists();
   });
 
@@ -221,7 +221,7 @@ function sectionCard(s) {
     // Notes on a section that no longer exists have nothing to point at. They
     // are kept and marked, not deleted: somebody wrote them.
     doc.comments.forEach(c => { if (c.sectionId === s.id) c.orphaned = true; });
-    editor.render();
+    renderGalley();
     renderSectionLists();
     paintThreads();
     Doc.collectGarbage(doc);
@@ -261,7 +261,7 @@ function sectionCard(s) {
     if (from < 0 || to < 0) return;
     const [moved] = doc.sections.splice(from, 1);
     doc.sections.splice(to, 0, moved);
-    editor.render();
+    renderGalley();
     renderSectionLists();
   });
 
@@ -288,7 +288,7 @@ function addSection() {
     html: '<p><br></p>',
   };
   doc.sections.push(s);
-  editor.render();
+  renderGalley();
   renderSectionLists();
   editor.focusIn(flow.querySelector(`.wd-section[data-id="${s.id}"]`));
 }
@@ -305,6 +305,9 @@ function reanchorAll() {
 
 /** Comment is always annotating; Edit only when you have asked it to. */
 const notesShown = () => view === 'comment' || doc.settings.showComments !== false;
+
+/** Where the thread cards for the current stage live. */
+const threadHost = () => (view === 'comment' ? '#thread-list' : '#edit-thread-list');
 
 function paintNotesToggle() {
   const on = doc.settings.showComments !== false;
@@ -485,16 +488,20 @@ function paintThreads() {
   const open = Notes.openCount(doc);
 
   $('#comment-count').textContent = doc.comments.length === 0
-    ? 'Nothing yet. Select a passage in Edit to leave the first note.'
-    : `${open} open, ${doc.comments.length - open} resolved`;
+    ? 'none yet'
+    : `${open} open · ${doc.comments.length - open} resolved`;
 
-  for (const [host, compact] of [[$('#thread-list'), false], [$('#edit-thread-list'), true]]) {
+  for (const [host, compact] of [[$('#thread-list'), true], [$('#edit-thread-list'), true]]) {
     host.textContent = '';
-    const shown = compact ? Notes.inReadingOrder(doc).filter(c => showResolved() || !c.resolved) : list;
+    const shown = host.id === 'edit-thread-list'
+      ? Notes.inReadingOrder(doc).filter(c => showResolved() || !c.resolved)
+      : list;
     if (!shown.length) {
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = compact ? 'No comments here yet.' : 'Nothing to show.';
+      empty.textContent = doc.comments.length
+        ? 'Nothing to show here.'
+        : 'Select a passage to leave the first note.';
       host.appendChild(empty);
       continue;
     }
@@ -510,13 +517,15 @@ function setActive(id) {
   $$('.thread').forEach(el => el.classList.toggle('is-active', el.dataset.id === id));
 }
 
+/** Scroll the writing a note is about into view, wherever you are reading it. */
 function jumpTo(id) {
-  const c = doc.comments.find(x => x.id === id);
-  if (!c) return;
-  switchView('edit');
+  if (!doc.comments.some(x => x.id === id)) return;
+  if (view !== 'comment' && view !== 'edit') switchView('comment');
   setActive(id);
-  const mark = marks.querySelector(`.wd-mark[data-comment="${id}"]`);
-  mark?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  requestAnimationFrame(() => {
+    marks.querySelector(`.wd-mark[data-comment="${id}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 }
 
 /** The floating Comment button that follows a selection. */
@@ -527,7 +536,7 @@ function bindCommentBar() {
     const sel = getSelection();
     // Comments hidden means you are not commenting, so the button that makes
     // one has no business appearing over a selection.
-    const here = view === 'edit' && notesShown();
+    const here = view === 'comment' || (view === 'edit' && notesShown());
     if (!sel || sel.isCollapsed || !sel.rangeCount || !here
         || !Notes.selectionSection(flow)) {
       bar.classList.remove('is-on');
@@ -542,7 +551,7 @@ function bindCommentBar() {
   };
 
   document.addEventListener('selectionchange', () => requestAnimationFrame(place));
-  $('#canvas').addEventListener('scroll', place);
+  for (const c of [$('#canvas'), $('#comment-canvas')]) c.addEventListener('scroll', place);
 
   $('#add-comment').addEventListener('mousedown', e => e.preventDefault());
   $('#add-comment').addEventListener('click', async () => {
@@ -569,7 +578,7 @@ function bindCommentBar() {
     paintMarks();
     paintThreads();
     paintStats();
-    const box = $(`#edit-thread-list .thread[data-id="${c.id}"] .reply-box`);
+    const box = $(`${threadHost()} .thread[data-id="${c.id}"] .reply-box`);
     box?.focus();
     box?.scrollIntoView({ block: 'center' });
   });
@@ -582,7 +591,7 @@ function bindCommentBar() {
     const id = Notes.markAt(marks, e.clientX, e.clientY);
     if (!id) return;
     setActive(id);
-    $(`#edit-thread-list .thread[data-id="${id}"]`)
+    $(`${threadHost()} .thread[data-id="${id}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 }
@@ -707,13 +716,56 @@ function applyView(next) {
   view = next;
   doc.stage = next;
   save();
+  holdGalley(next);
   $$('.view').forEach(v => v.classList.toggle('is-on', v.id === `view-${next}`));
   $$('#tabs button').forEach(b => b.classList.toggle('is-on', b.dataset.view === next));
+  paintNotesToggle();
   if (next === 'format') paintPageGrid();
   if (next === 'save') paintSave();
   if (next === 'comment') paintThreads();
   if (next === 'draft') requestAnimationFrame(() => draft.focus());
-  if (next !== 'edit') $('#commentbar').classList.remove('is-on');
+  if (next !== 'edit' && next !== 'comment') $('#commentbar').classList.remove('is-on');
+}
+
+/** Whichever canvas is holding the galley at the moment. */
+const canvasOf = () => paper.parentElement;
+
+/**
+ * Move the document to the stage that is about to show it.
+ *
+ * Edit and Comment are the same page with different jobs in mind, and both
+ * have to show the real thing rather than a picture of it. There is exactly
+ * one laid-out galley in this application and everything else is derived from
+ * it, so a second rendered copy in the Comment stage would be a second set of
+ * line breaks — and a comment anchored against the wrong one. Moving the one
+ * that exists is both cheaper and more honest.
+ *
+ * Nothing about the layout changes on the way across: the sheet has an
+ * explicit width and both canvases centre it, so not one line rewraps. What
+ * does change is whether the sections can be typed into.
+ */
+function holdGalley(stage) {
+  const wanted = stage === 'comment' ? $('#comment-canvas') : $('#canvas');
+  const from = paper.parentElement;
+  if (from && from !== wanted) {
+    const top = from.scrollTop;
+    wanted.appendChild(paper);
+    wanted.scrollTop = top;
+  }
+  // Comment is for reading and annotating. Switching the sections off here,
+  // rather than re-rendering them read-only, keeps the caret, the scroll
+  // position and the undo history of whatever you were in the middle of.
+  const editable = stage !== 'comment' && !reviewing;
+  flow.querySelectorAll('.wd-section').forEach(el => {
+    el.contentEditable = editable ? 'true' : 'false';
+    el.spellcheck = editable;
+  });
+}
+
+/** Re-render the galley, then put it back into the state its stage wants. */
+function renderGalley() {
+  editor.render();
+  holdGalley(view);
 }
 
 function paintPageGrid() {
@@ -1168,7 +1220,7 @@ function takeDraftToEdit({ then = 'edit' } = {}) {
   doc.draft = Doc.defaultDraft();
   draft.render();
   paintDraftMeter();
-  editor.render();
+  renderGalley();
   renderSectionLists();
   switchView(then);
   save({ now: true });
@@ -1198,7 +1250,7 @@ function showArrival(id) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const el = flow.querySelector(`.wd-section[data-id="${id}"]`);
     if (!el) return;
-    const canvas = $('#canvas');
+    const canvas = canvasOf();
     canvas.scrollTop +=
       el.getBoundingClientRect().top - canvas.getBoundingClientRect().top - 40;
     el.classList.add('is-arrived');
@@ -1291,7 +1343,9 @@ function bindFigureBar() {
   };
 
   editor.addEventListener('figure', e => place(e.detail.figure));
-  $('#canvas').addEventListener('scroll', () => place(editor.selectedFigure));
+  for (const c of [$('#canvas'), $('#comment-canvas')]) {
+    c.addEventListener('scroll', () => place(editor.selectedFigure));
+  }
 
   width.addEventListener('input', () => {
     val.textContent = `${width.value}%`;
@@ -1345,7 +1399,7 @@ function reload() {
   layoutPaper();
   buildRail();
   $('#export-status').textContent = '';
-  editor.render();
+  renderGalley();
   renderSectionLists();
   paintThreads();
   draft?.render();
@@ -1735,7 +1789,7 @@ async function boot() {
   editor.addEventListener('change', e => schedule(e.detail));
   // Typing anything at all means the sample text is no longer the sample.
   flow.addEventListener('input', () => { doc.sampleIntact = false; }, { once: true });
-  editor.render();
+  renderGalley();
   renderSectionLists();
   paintThreads();
   if (!took) applyView(doc.stage || 'edit');
