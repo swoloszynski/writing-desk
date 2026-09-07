@@ -659,6 +659,23 @@ async function applyNotes(text) {
 
 function switchView(next) {
   if (reviewing && !['edit', 'comment'].includes(next)) return;
+
+  // Leaving the drafting room with writing still in it. A draft is invisible
+  // from every other stage, so walking away from one without being asked is
+  // how it gets forgotten — and the dot on the tab is a reminder, not a
+  // question. Cancel leaves it exactly where it is.
+  if (view === 'draft' && next !== 'draft' && doc.draft.text.trim()) {
+    const words = countWords(doc.draft.text);
+    if (confirm(
+      `${words} word${words === 1 ? '' : 's'} are still in the drafting room, ` +
+      'where nothing else can see them.\n\n' +
+      'Bring them into Edit now? Cancel leaves them where they are.'
+    )) {
+      takeDraftToEdit({ then: next });
+      return;
+    }
+  }
+
   view = next;
   $$('.view').forEach(v => v.classList.toggle('is-on', v.id === `view-${next}`));
   $$('#tabs button').forEach(b => b.classList.toggle('is-on', b.dataset.view === next));
@@ -965,6 +982,12 @@ function paintKeys() {
   }
 }
 
+function paintDraftPanel() {
+  const open = doc.settings.draft.panel !== false;
+  $('#draft-rail').hidden = !open;
+  $('#draft-panel').textContent = open ? 'Hide panel' : 'Show panel';
+}
+
 function paintDraftMeter() {
   const words = countWords(doc.draft.text);
   const goal = doc.settings.draft.goal | 0;
@@ -1021,8 +1044,19 @@ function bindDraft() {
   });
   paintKeys();
   paintDraftMeter();
+  addEventListener('resize', () => { if (view === 'draft') draft.paintFade(); });
 
-  $('#draft-done').addEventListener('click', takeDraftToEdit);
+  $('#draft-done').addEventListener('click', () => takeDraftToEdit());
+
+  $('#draft-panel').addEventListener('click', () => {
+    doc.settings.draft.panel = !doc.settings.draft.panel;
+    save();
+    paintDraftPanel();
+    // The column re-centres in the wider stage, so the fade has to be
+    // measured again against a line that is now somewhere else.
+    requestAnimationFrame(() => draft.paintFade());
+  });
+  paintDraftPanel();
 }
 
 /**
@@ -1034,12 +1068,12 @@ function bindDraft() {
  * ships with, which nobody wrote and nobody wants underneath their first
  * chapter.
  */
-function takeDraftToEdit() {
+function takeDraftToEdit({ then = 'edit' } = {}) {
   const text = doc.draft.text.trim();
-  if (!text) return toast('Nothing drafted yet.');
+  if (!text) { toast('Nothing drafted yet.'); return false; }
 
   const parts = draftToSections(text);
-  if (!parts.length) return toast('Nothing drafted yet.');
+  if (!parts.length) { toast('Nothing drafted yet.'); return false; }
 
   if (doc.sampleIntact) doc.sections = [];
   const first = doc.sections.length;
@@ -1053,16 +1087,48 @@ function takeDraftToEdit() {
     });
   });
 
+  const arrivedId = doc.sections[first].id;
   doc.sampleIntact = false;
   doc.draft = Doc.defaultDraft();
   draft.render();
   paintDraftMeter();
   editor.render();
   renderSectionLists();
-  switchView('edit');
+  switchView(then);
   save({ now: true });
+  if (then === 'edit') showArrival(arrivedId);
   toast(`Moved ${parts.length} section${parts.length === 1 ? '' : 's'} into Edit. ` +
         'The drafting room is empty again.');
+  return true;
+}
+
+/**
+ * Put the writing that just arrived in front of the reader.
+ *
+ * Landing at the top of a document that has grown by three sections is no
+ * better than landing nowhere: the whole point of the move is that there is
+ * something new to look at. `scrollIntoView` is no good here because the
+ * canvas has padding it would happily scroll past, so the offset is worked
+ * out against the canvas itself.
+ *
+ * Pagination has to have finished first. A section that starts a new page
+ * carries a forced break, and a forced break has no height until the page it
+ * ends has been measured — so the galley grows by most of a page for every
+ * one of them, *after* the sections are in the DOM. Measuring before that
+ * lands you somewhere in the middle of the document that was already there.
+ */
+function showArrival(id) {
+  repaginate();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const el = flow.querySelector(`.wd-section[data-id="${id}"]`);
+    if (!el) return;
+    const canvas = $('#canvas');
+    canvas.scrollTop +=
+      el.getBoundingClientRect().top - canvas.getBoundingClientRect().top - 40;
+    el.classList.add('is-arrived');
+    setTimeout(() => el.classList.remove('is-arrived'), 1600);
+    markActive(id);
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -1201,6 +1267,7 @@ function reload() {
   renderSectionLists();
   paintThreads();
   draft?.render();
+  paintDraftPanel();
   paintDraftMeter();
   switchView('edit');
   save({ now: true });

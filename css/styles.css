@@ -201,6 +201,12 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .wd-seam.is-end .wd-seam-label{ color:var(--dimmer); }
 
 .wd-section{ outline:none; }
+/* Writing that has just come over from the drafting room, said once. */
+.wd-section.is-arrived{ animation:arrived 1.6s ease-out; }
+@keyframes arrived{
+  0%, 40%{ background:rgba(240,183,43,.34); }
+  100%{ background:rgba(240,183,43,0); }
+}
 .wd-section:focus-visible{ outline:none; }
 
 .wd-flow figure{ position:relative; cursor:pointer; }
@@ -449,14 +455,21 @@ body.is-reviewing .sec{ cursor:pointer; }
 }
 .draft-canvas::-webkit-scrollbar{ display:none; }
 .draft-canvas.is-focusmode{
-  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 34%, #000 100%);
-  mask-image:linear-gradient(to bottom, transparent 0, #000 34%, #000 100%);
+  /* `--fade-end` is where full contrast begins, measured from the top of the
+     box, and it is set from the position of the line being typed rather than
+     from a fixed fraction of the window. It is 0 until there is something
+     behind you, which is when this whole rule does nothing at all. */
+  --fade-end:0px;
+  -webkit-mask-image:linear-gradient(to bottom,
+    rgba(0,0,0,.16) 0, #000 var(--fade-end), #000 100%);
+  mask-image:linear-gradient(to bottom,
+    rgba(0,0,0,.16) 0, #000 var(--fade-end), #000 100%);
 }
 
 .draft-column{
   width:min(660px, 88vw);
   font-family:'Courier Prime', ui-monospace, Menlo, monospace;
-  font-size:16px; line-height:1.85; color:#b6b1c4;
+  font-size:18px; line-height:1.8; color:#c7c2d5;
   transition:transform .06s;
 }
 .draft-column.is-nudged{ animation:refuse .22s ease-in-out; }

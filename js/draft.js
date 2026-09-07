@@ -13,6 +13,9 @@
 // away from it, we take away in `beforeinput` — the one place a browser lets
 // you refuse an edit before it happens, whatever caused it.
 
+/** Lines above the one being typed that keep their full contrast. */
+const KEEP_CLEAR_LINES = 7;
+
 const DELETING = /^delete/;
 const UNDOING = /^history/;
 
@@ -211,7 +214,38 @@ export class Draft extends EventTarget {
 
     this.scroller.classList.toggle('is-focusmode', !!this.doc.settings.draft.focus);
     this.scroller.scrollTop = this.scroller.scrollHeight;
+    this.paintFade();
     this.paintStats();
+  }
+
+  /**
+   * Fade only what is actually behind you.
+   *
+   * A fixed gradient over the top third of the window dims the opening lines
+   * of a draft that has no opening behind it — you start writing and the first
+   * thing you type is already half gone. So the fade is measured from the line
+   * being typed rather than from the top of the screen: the last handful of
+   * lines are left alone, and the gradient covers only whatever sits above
+   * them. On a short draft that is nothing, and no fade is drawn at all.
+   *
+   * The far end stops at a low opacity rather than at nothing. Text you wrote
+   * ten minutes ago should be quiet, not deleted.
+   */
+  paintFade() {
+    const style = this.scroller.style;
+    if (!this.doc.settings.draft.focus) {
+      style.removeProperty('--fade-end');
+      return;
+    }
+    const current = this.lines.lastElementChild;
+    if (!current) { style.setProperty('--fade-end', '0px'); return; }
+
+    const box = this.scroller.getBoundingClientRect();
+    const line = current.getBoundingClientRect();
+    const lineH = Math.max(18, line.height);
+    const clear = lineH * KEEP_CLEAR_LINES;
+    const end = Math.max(0, line.bottom - box.top - clear);
+    style.setProperty('--fade-end', `${Math.round(end)}px`);
   }
 
   paintStats() {

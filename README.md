@@ -53,13 +53,27 @@ is the only way to know you have to close it, and with no way back, closing it
 is the only option.
 
 **Take it to Edit** turns the draft into sections — one per level-one heading,
-because that is what a writer means by typing one — and empties the room.
-Writing that arrives with no heading over it becomes a section called *New
-section*, which is a placeholder rather than a guess dressed up as a title.
+because that is what a writer means by typing one — and empties the room. Edit
+opens on the writing that just arrived rather than at the top of a document
+that has grown by three sections, and the new part is marked for a second so
+you can see which part is the new part. Writing that arrives with no heading
+over it becomes a section called *New section*, which is a placeholder rather
+than a guess dressed up as a title.
 
-Nothing is carried over on its own. While there is writing still in the room,
-a dot sits on the Draft tab, since a draft is invisible from every other stage
-and the count in the top bar does not include it.
+Nothing is carried over on its own — but nothing is quietly left behind
+either. A dot sits on the Draft tab while there is writing still in the room,
+since a draft is invisible from every other stage and the count in the top bar
+does not include it. Walking away from an unmoved draft asks first, once, and
+takes no for an answer.
+
+**Fade what is behind you** dims the writing above the line you are on. The
+fade is measured from that line rather than from the top of the window, so the
+opening lines of a draft with nothing behind them yet are not dimmed for
+having arrived early. The far end of the gradient stops short of nothing:
+writing from ten minutes ago should be quiet, not gone.
+
+**Hide panel** takes the rail away and gives the column the whole width, for
+when the word count is the thing you would rather not be looking at.
 
 ### How the refusal works
 

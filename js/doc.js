@@ -64,7 +64,7 @@ export function defaultSettings() {
     press: { flipBack: false, foldLine: true, cropMarks: false, spreadGap: true,
              exportMode: 'reading' },
 
-    draft: { sound: false, focus: true, goal: 0 },
+    draft: { sound: false, focus: true, goal: 0, panel: true },
   };
 }
 
