@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Writing Desk</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23131218'/><rect x='2.5' y='2.5' width='11' height='11' rx='1' fill='%23fff'/><rect x='4.5' y='5' width='7' height='1.2' fill='%23131218'/><rect x='4.5' y='7.5' width='7' height='1.2' fill='%23131218'/><rect x='4.5' y='10' width='4' height='1.2' fill='%23f0532b'/></svg>">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">Writing&nbsp;Desk</div>
+    <input class="doc-title" id="doc-title" value="Untitled" spellcheck="false" aria-label="Title">
+
+    <nav class="tabs" id="tabs">
+      <button data-view="draft"><span class="tnum">1</span>Draft</button>
+      <button data-view="edit" class="is-on"><span class="tnum">2</span>Edit</button>
+      <button data-view="comment"><span class="tnum">3</span>Comment<span class="tbadge" id="tab-comments" hidden></span></button>
+      <button data-view="format"><span class="tnum">4</span>Format</button>
+      <button data-view="save"><span class="tnum">5</span>Save</button>
+      <button data-view="send" class="is-soon"><span class="tnum">6</span>Send</button>
+    </nav>
+
+    <div class="stats" id="stats"></div>
+    <button class="btn primary" id="export-top">Export</button>
+  </header>
+
+  <div class="banner" id="review-banner" hidden>
+    <b id="review-who">Somebody</b> shared this with you to read and comment on.
+    Select any passage to leave a note, then send them back.
+    <button class="btn primary" id="review-send">Send notes back</button>
+  </div>
+
+  <main>
+
+    <!-- ------------------------------------------------------------ DRAFT -->
+    <section class="view" id="view-draft">
+      <div class="stage draft-stage">
+        <div class="toolbar">
+          <strong class="tlabel">Draft</strong>
+          <span class="hint">Forwards only. No delete, no arrow keys, no cursor to move.</span>
+          <div class="spacer"></div>
+          <div class="draft-meter" id="draft-meter"></div>
+          <button class="btn" id="draft-help-btn">Keys</button>
+          <button class="btn primary" id="draft-done">Take it to Edit</button>
+        </div>
+
+        <div class="draft-canvas" id="draft-canvas">
+          <div class="draft-column" id="draft-column"></div>
+          <textarea id="draft-input" class="draft-input" spellcheck="true"
+                    autocomplete="off" autocorrect="on" autocapitalize="sentences"
+                    aria-label="Draft"></textarea>
+        </div>
+
+        <div class="draft-refusal" id="draft-refusal"></div>
+      </div>
+
+      <aside class="rail right">
+        <div class="rail-head"><span>Session</span></div>
+        <div class="group-body" id="draft-session"></div>
+        <div class="rail-head"><span>The room</span></div>
+        <div class="group-body" id="draft-fields"></div>
+        <div class="rail-head"><span>Keys</span></div>
+        <div class="keys" id="draft-keys"></div>
+      </aside>
+    </section>
+
+    <!-- ------------------------------------------------------------- EDIT -->
+    <section class="view is-on" id="view-edit">
+
+      <aside class="rail left">
+        <div class="rail-head">
+          <span>Sections</span>
+          <button id="add-section" title="Add a section">+</button>
+        </div>
+        <div class="sections" id="section-list"></div>
+        <div class="hint" style="padding:0 13px 18px">
+          Drag to reorder. The text flows through the sections in this order;
+          tick <b>New page</b> to make one start at the top of a fresh page.
+        </div>
+      </aside>
+
+      <div class="stage">
+        <div class="toolbar" id="edit-toolbar">
+          <select class="tsel" id="block-style" title="Paragraph style">
+            <option value="p">Body</option>
+            <option value="h1">Heading 1</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+            <option value="quote">Quote</option>
+            <option value="caption">Caption</option>
+          </select>
+          <div class="tsep"></div>
+          <button class="tbtn b" data-cmd="bold" title="Bold (⌘B)">B</button>
+          <button class="tbtn i" data-cmd="italic" title="Italic (⌘I)">I</button>
+          <button class="tbtn u" data-cmd="underline" title="Underline (⌘U)">U</button>
+          <div class="tsep"></div>
+          <button class="tbtn" data-cmd="insertUnorderedList" title="Bulleted list"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="2.5" cy="4" r="1.1" fill="currentColor" stroke="none"/><circle cx="2.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="2.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><path d="M6 4h8M6 8h8M6 12h8"/></svg></button>
+          <button class="tbtn" data-cmd="insertOrderedList" title="Numbered list"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><text x="0.2" y="5.7" font-size="5.4" font-family="Inter,sans-serif" font-weight="600" fill="currentColor" stroke="none">1</text><text x="0.2" y="9.9" font-size="5.4" font-family="Inter,sans-serif" font-weight="600" fill="currentColor" stroke="none">2</text><text x="0.2" y="14.1" font-size="5.4" font-family="Inter,sans-serif" font-weight="600" fill="currentColor" stroke="none">3</text></svg></button>
+          <div class="tsep"></div>
+          <button class="tbtn" data-cmd="justifyLeft" title="Align left"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M2 7h7.5M2 10.5h12M2 14h7.5"/></svg></button>
+          <button class="tbtn" data-cmd="justifyCenter" title="Centre"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M4.5 7h7M2 10.5h12M4.5 14h7"/></svg></button>
+          <button class="tbtn" data-cmd="justifyRight" title="Align right"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M6.5 7h7.5M2 10.5h12M6.5 14h7.5"/></svg></button>
+          <div class="tsep"></div>
+          <button class="tbtn" id="ins-rule" title="Horizontal rule"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8h12"/><path d="M3.5 4h9M3.5 12h9" opacity=".35"/></svg></button>
+          <button class="tbtn" id="ins-image" title="Insert a picture"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.75" y="3" width="12.5" height="10" rx="1.4"/><circle cx="5.6" cy="6.6" r="1.15"/><path d="M2.2 11.2 6 8l2.6 2.2L11 8.4l3 2.8"/></svg></button>
+          <button class="tbtn" id="ins-break" title="Page break (⌘↵)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5h12M2 11.5h12" opacity=".45"/><path d="M8 6v3.2M6.3 8l1.7 1.7L9.7 8"/></svg></button>
+          <input type="file" id="image-file" accept="image/*" hidden multiple>
+          <input type="file" id="open-file" accept="application/json,.json" hidden>
+          <input type="file" id="md-file" accept="text/markdown,.md,.markdown,.txt" hidden>
+          <input type="file" id="notes-file" accept="application/json,.json" hidden>
+          <div class="spacer"></div>
+          <button class="tbtn" id="to-format" title="See every page laid out"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.6" y="2.6" width="5.4" height="10.8" rx=".8"/><rect x="9" y="2.6" width="5.4" height="10.8" rx=".8"/></svg><span>Preview pages</span></button>
+        </div>
+
+        <div class="canvas" id="canvas">
+          <div class="paper" id="paper">
+            <div class="seams" id="seams"></div>
+            <div class="marks" id="marks"></div>
+            <div class="wd-flow" id="flow"></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="rail right" id="edit-notes">
+        <div class="rail-head">
+          <span>Comments</span>
+          <label class="tiny-toggle"><input type="checkbox" id="show-resolved"> resolved</label>
+        </div>
+        <div class="thread-list is-compact" id="edit-thread-list"></div>
+      </aside>
+    </section>
+
+    <!-- ---------------------------------------------------------- COMMENT -->
+    <section class="view" id="view-comment">
+      <aside class="rail left">
+        <div class="rail-head owner-only"><span>Send it out</span></div>
+        <div class="group-body owner-only" id="share-out">
+          <button class="btn action" id="share-link">Copy a reading link</button>
+          <button class="btn action" id="share-file">Download a reading file  ·  .json</button>
+          <div class="hint" id="share-note"></div>
+        </div>
+
+        <div class="rail-head owner-only"><span>Bring notes back</span></div>
+        <div class="group-body owner-only">
+          <textarea class="paste-box" id="notes-paste" rows="3"
+                    placeholder="Paste the link they sent back"></textarea>
+          <button class="btn action" id="notes-apply">Add these notes</button>
+          <button class="btn action" id="notes-open">Open a notes file…</button>
+          <div class="hint">
+            Notes come back as a link or a small file. Either one merges into
+            the comments already here; nothing is overwritten.
+          </div>
+        </div>
+
+        <div class="rail-head reader-only"><span>Send them back</span></div>
+        <div class="group-body reader-only">
+          <button class="btn action" id="notes-send">Copy a link with your notes</button>
+          <div class="hint">
+            Your notes are packed into the link itself and go straight back to
+            whoever sent you the draft. Nothing here was uploaded anywhere, and
+            nothing you write is stored outside this browser.
+          </div>
+        </div>
+
+        <div class="rail-head"><span>You</span></div>
+        <div class="group-body">
+          <div class="field">
+            <label for="who">Sign notes as</label>
+            <input id="who" class="text-input" placeholder="Your name" spellcheck="false">
+          </div>
+        </div>
+      </aside>
+
+      <div class="stage">
+        <div class="toolbar">
+          <strong class="tlabel">Comments</strong>
+          <span class="hint" id="comment-count"></span>
+          <div class="spacer"></div>
+          <div class="seg" id="comment-filter">
+            <button data-filter="open" class="is-on">Open</button>
+            <button data-filter="resolved">Resolved</button>
+            <button data-filter="all">All</button>
+          </div>
+        </div>
+        <div class="grid-wrap">
+          <div class="thread-list" id="thread-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------- FORMAT -->
+    <section class="view" id="view-format">
+      <aside class="rail left">
+        <div class="rail-head">
+          <span>Sections</span>
+          <button id="add-section-2" title="Add a section">+</button>
+        </div>
+        <div class="sections" id="section-list-2"></div>
+        <div class="hint" style="padding:0 13px 18px">
+          Dragging moves a section and everything in it. Pages fall where the
+          text puts them, so the numbers move with it.
+        </div>
+      </aside>
+
+      <div class="stage">
+        <div class="toolbar">
+          <strong class="tlabel">Pages</strong>
+          <span class="hint" style="margin-left:10px">
+            In the order a reader meets them.
+          </span>
+          <div class="spacer"></div>
+          <div class="zoom">
+            <label for="format-zoom">Size</label>
+            <input type="range" id="format-zoom" min="0.12" max="0.72" step="0.02" value="0.28">
+          </div>
+        </div>
+        <div class="grid-wrap">
+          <div class="pgrid" id="page-grid"></div>
+        </div>
+      </div>
+
+      <aside class="rail right" id="settings-rail"></aside>
+    </section>
+
+    <!-- ------------------------------------------------------------- SAVE -->
+    <section class="view" id="view-save">
+      <aside class="rail left">
+        <div class="rail-head"><span>Export</span></div>
+        <div class="export-box">
+          <div class="field stack">
+            <label for="export-mode">What to write</label>
+            <div class="seg vertical" id="export-mode">
+              <button data-mode="reading" class="is-on">PDF · reading order</button>
+              <button data-mode="press" id="mode-press">PDF · print &amp; fold order</button>
+              <button data-mode="both" id="mode-both">PDF · both, zipped</button>
+            </div>
+          </div>
+          <div class="hint" id="export-note"></div>
+          <button class="btn primary" id="export-pdf">Export PDF</button>
+          <div class="status" id="export-status"></div>
+        </div>
+
+        <div class="rail-head"><span>Other formats</span></div>
+        <div class="group-body">
+          <button class="btn action" data-action="export-md">Markdown  ·  .md</button>
+          <button class="btn action" data-action="export-txt">Plain text  ·  .txt</button>
+          <button class="btn action" data-action="export-html">Web page  ·  .html</button>
+          <button class="btn action" data-action="save-copy">Everything  ·  .json</button>
+          <div class="hint">
+            Markdown and plain text carry the words. The web page carries the
+            words and the type. Only the .json carries the pictures and the
+            comments as well.
+          </div>
+        </div>
+
+        <div class="rail-head"><span>The document</span></div>
+        <div class="summary"><dl id="save-summary"></dl></div>
+
+        <div class="rail-head" id="press-head"><span>Press</span></div>
+        <div class="group-body" id="press-fields"></div>
+        <div class="hint" id="press-hint" style="padding:0 13px 14px">
+          Print at 100% — no “fit to page”, which would shrink the sheet and
+          put the margins somewhere else. Print double-sided, fold the whole
+          stack in half together, and staple twice on the fold.
+        </div>
+      </aside>
+
+      <div class="stage">
+        <div class="toolbar">
+          <strong class="tlabel" id="save-stage-label">Preview</strong>
+          <span class="hint" style="margin-left:10px" id="save-stage-note"></span>
+          <div class="spacer"></div>
+          <div class="zoom">
+            <label for="save-zoom">Size</label>
+            <input type="range" id="save-zoom" min="0.14" max="0.9" step="0.02" value="0.34">
+          </div>
+        </div>
+        <div class="grid-wrap">
+          <div class="sheets" id="save-preview"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------------- SEND -->
+    <section class="view" id="view-send">
+      <div class="stage">
+        <div class="toolbar"><strong class="tlabel">Send</strong>
+          <span class="hint" style="margin-left:10px">Not built yet.</span></div>
+        <div class="grid-wrap">
+          <div class="soon">
+            <h2>Send</h2>
+            <p>
+              Save writes a file. Send would put the piece where people already
+              are — a post on a blog, a draft sitting in a newsletter tool
+              waiting to go out, a page in whatever notes application the rest
+              of the work lives in.
+            </p>
+            <p>
+              It is the one stage that cannot be done from a folder of files
+              opened in a browser. Every destination wants an account and a
+              token, and a token in a page anyone can view is a token anyone
+              can use. So this stage waits until there is somewhere safe to
+              keep one.
+            </p>
+            <p class="hint">
+              Until then: <b>Export</b> writes markdown that pastes cleanly
+              into most of these places, and a web page that stands on its own.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- The button that turns a selection into a comment. -->
+<div class="popbar" id="commentbar">
+  <button class="btn primary" id="add-comment">Comment</button>
+</div>
+
+<div class="figbar" id="figbar">
+  <span class="hint">Width</span>
+  <input type="range" id="fig-width" min="15" max="100" step="1" value="70">
+  <span class="val" id="fig-width-val">70%</span>
+  <div class="tsep"></div>
+  <button class="tbtn" data-align="left" title="Left"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M2 7h7.5M2 10.5h12M2 14h7.5"/></svg></button>
+  <button class="tbtn" data-align="center" title="Centre"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M4.5 7h7M2 10.5h12M4.5 14h7"/></svg></button>
+  <button class="tbtn" data-align="right" title="Right"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M6.5 7h7.5M2 10.5h12M6.5 14h7.5"/></svg></button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="fig-caption" title="Caption">Aa</button>
+  <button class="tbtn" id="fig-delete" title="Remove">✕</button>
+</div>
+
+<dialog class="sheetbox" id="link-dialog">
+  <h3 id="link-title">Reading link</h3>
+  <p class="hint" id="link-hint"></p>
+  <textarea id="link-text" rows="4" readonly spellcheck="false"></textarea>
+  <div class="row">
+    <button class="btn" id="link-close">Close</button>
+    <button class="btn primary" id="link-copy">Copy</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<!-- Vendored so the application keeps working with no network. -->
+<script src="js/vendor/pdf-lib.min.js"></script>
+<script src="js/vendor/fontkit.umd.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

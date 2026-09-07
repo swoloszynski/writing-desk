@@ -113,6 +113,10 @@ export class Editor extends EventTarget {
     this.flow = flowEl;
     this.doc = doc;
     this.selectedFigure = null;
+    // Set when the galley is somebody else's draft, opened to be read and
+    // commented on. The sections still render and still measure — the page
+    // previews and the PDF depend on that — they just cannot be typed into.
+    this.readOnly = false;
     this._bind();
   }
 
@@ -129,8 +133,8 @@ export class Editor extends EventTarget {
       const el = document.createElement('div');
       el.className = 'wd-section';
       el.dataset.id = s.id;
-      el.contentEditable = 'true';
-      el.spellcheck = true;
+      el.contentEditable = this.readOnly ? 'false' : 'true';
+      el.spellcheck = !this.readOnly;
       el.innerHTML = s.html || '<p><br></p>';
       this.flow.appendChild(el);
     }

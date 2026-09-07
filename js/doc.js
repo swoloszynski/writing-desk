@@ -85,6 +85,9 @@ export function defaultDoc() {
     settings: defaultSettings(),
     draft: defaultDraft(),
     comments: [],
+    // True until somebody types. It is what lets a first draft replace the
+    // sample text instead of landing underneath it.
+    sampleIntact: true,
     sections: [
       {
         id: uid('s'),
@@ -169,6 +172,7 @@ export function adoptShape(saved) {
   doc.settings = merge(defaultSettings(), saved.settings);
   doc.draft = { ...defaultDraft(), ...(saved.draft || {}) };
   doc.comments = Array.isArray(saved.comments) ? saved.comments.map(normalizeComment) : [];
+  doc.sampleIntact = saved.sampleIntact === true;
   if (Array.isArray(saved.sections) && saved.sections.length) {
     doc.sections = saved.sections.map(normalizeSection);
   }

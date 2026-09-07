@@ -1,7 +1,8 @@
 // The settings rail, built from a description rather than by hand, so adding
 // a control is one line and every control saves and repaginates the same way.
 
-import { FAMILIES, FAMILY_NAMES } from './fonts.js';
+import { FAMILIES } from './fonts.js';
+import { PAPER, PAPER_KEYS, paperOf, isFolded } from './doc.js';
 
 const get = (obj, path) => path.split('.').reduce((o, k) => o?.[k], obj);
 const set = (obj, path, v) => {
@@ -13,77 +14,102 @@ const set = (obj, path, v) => {
 const fontOptions = () =>
   FAMILIES.map(f => [f.name, `${f.name}`]);
 
-/** Every control in the rail, in order. */
-export const SCHEMA = [
-  {
-    title: 'Page', open: true, fields: [
-      { type: 'static', label: 'Sheet', value: 'US Letter, folded to 5.5 × 8.5 in' },
-      { type: 'quad', label: 'Margins (inches)', fields: [
-        { type: 'number', path: 'margins.top', label: 'Top', min: 0.15, max: 3, step: 0.05 },
-        { type: 'number', path: 'margins.bottom', label: 'Bottom', min: 0.15, max: 3, step: 0.05 },
-        { type: 'number', path: 'margins.inside', label: 'Inside (fold)', min: 0.15, max: 3, step: 0.05 },
-        { type: 'number', path: 'margins.outside', label: 'Outside', min: 0.15, max: 3, step: 0.05 },
-      ] },
-      { type: 'hint', text: 'Inside is the folded spine edge. Give it a little more than the outside so text does not disappear into the fold.' },
-    ],
-  },
-  {
-    title: 'Body text', open: true, fields: [
-      { type: 'select', path: 'body.font', label: 'Font', options: fontOptions },
-      { type: 'number', path: 'body.size', label: 'Size (pt)', min: 5, max: 24, step: 0.25 },
-      { type: 'number', path: 'body.lineHeight', label: 'Line height', min: 0.9, max: 2.4, step: 0.02 },
-      { type: 'seg', path: 'body.align', label: 'Align',
-        options: [['left', 'Left'], ['justify', 'Justify'], ['center', 'Centre']] },
-      { type: 'number', path: 'body.paraSpace', label: 'Space after (em)', min: 0, max: 2, step: 0.05 },
-      { type: 'number', path: 'body.indent', label: 'First-line indent (em)', min: 0, max: 4, step: 0.1 },
-    ],
-  },
-  ...['h1', 'h2', 'h3'].map((h, i) => ({
-    title: `Heading ${i + 1}`, open: false, fields: [
-      { type: 'select', path: `headings.${h}.font`, label: 'Font', options: fontOptions },
-      { type: 'number', path: `headings.${h}.size`, label: 'Size (pt)', min: 6, max: 60, step: 0.5 },
-      { type: 'seg', path: `headings.${h}.weight`, label: 'Weight',
-        options: [[400, 'Regular'], [700, 'Bold']], cast: Number },
-      { type: 'check', path: `headings.${h}.italic`, label: 'Italic' },
-      { type: 'check', path: `headings.${h}.caps`, label: 'All caps' },
-      { type: 'seg', path: `headings.${h}.align`, label: 'Align',
-        options: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']] },
-      { type: 'number', path: `headings.${h}.before`, label: 'Space before (em)', min: 0, max: 4, step: 0.05 },
-      { type: 'number', path: `headings.${h}.after`, label: 'Space after (em)', min: 0, max: 4, step: 0.05 },
-      { type: 'number', path: `headings.${h}.tracking`, label: 'Tracking (em)', min: -0.08, max: 0.4, step: 0.005 },
-    ],
-  })),
-  {
-    title: 'Quote & caption', open: false, fields: [
-      { type: 'select', path: 'quote.font', label: 'Quote font', options: fontOptions },
-      { type: 'number', path: 'quote.size', label: 'Quote size (pt)', min: 5, max: 24, step: 0.25 },
-      { type: 'check', path: 'quote.italic', label: 'Quote italic' },
-      { type: 'number', path: 'quote.indent', label: 'Quote indent (em)', min: 0, max: 4, step: 0.05 },
-      { type: 'select', path: 'caption.font', label: 'Caption font', options: fontOptions },
-      { type: 'number', path: 'caption.size', label: 'Caption size (pt)', min: 4, max: 16, step: 0.25 },
-      { type: 'seg', path: 'caption.align', label: 'Caption align',
-        options: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']] },
-    ],
-  },
-  {
-    title: 'Page numbers', open: false, fields: [
-      { type: 'check', path: 'folio.on', label: 'Show page numbers' },
-      { type: 'seg', path: 'folio.position', label: 'Position',
-        options: [['bottom-outside', 'Outside'], ['bottom-center', 'Centre']] },
-      { type: 'select', path: 'folio.font', label: 'Font', options: fontOptions },
-      { type: 'number', path: 'folio.size', label: 'Size (pt)', min: 4, max: 16, step: 0.25 },
-      { type: 'number', path: 'folio.startAt', label: 'First page is', min: -20, max: 500, step: 1 },
-      { type: 'check', path: 'folio.hideOnFirst', label: 'Hide on the cover' },
-      { type: 'check', path: 'folio.hideOnBlank', label: 'Hide on blank pages' },
-    ],
-  },
-];
+const paperOptions = () => PAPER_KEYS.map(k => [k, PAPER[k].name]);
+
+const inches = n => `${n.toFixed(2).replace(/\.?0+$/, '')} in`;
+
+function sheetNote(settings) {
+  const p = paperOf(settings);
+  return p.fold
+    ? `${inches(p.sheetW)} × ${inches(p.sheetH)}, folded to ${inches(p.pageW)} × ${inches(p.pageH)}`
+    : `${inches(p.pageW)} × ${inches(p.pageH)}`;
+}
+
+/**
+ * Every control in the rail, in order.
+ *
+ * Built from the settings rather than declared flat, because two margins
+ * change their names depending on the paper: on a folded booklet they are the
+ * fold and the trimmed edge, and on anything else they are simply left and
+ * right. Calling the fold margin "left" on a page that has no fold is how
+ * people put their text into the crease.
+ */
+export function schemaFor(settings) {
+  const folded = isFolded(settings);
+  return [
+    {
+      title: 'Page', open: true, fields: [
+        { type: 'select', path: 'paper', label: 'Paper', options: paperOptions },
+        { type: 'static', label: 'Size', value: sheetNote(settings) },
+        { type: 'quad', label: 'Margins (inches)', fields: [
+          { type: 'number', path: 'margins.top', label: 'Top', min: 0.15, max: 3, step: 0.05 },
+          { type: 'number', path: 'margins.bottom', label: 'Bottom', min: 0.15, max: 3, step: 0.05 },
+          { type: 'number', path: 'margins.inside', label: folded ? 'Inside (fold)' : 'Left', min: 0.15, max: 3, step: 0.05 },
+          { type: 'number', path: 'margins.outside', label: folded ? 'Outside' : 'Right', min: 0.15, max: 3, step: 0.05 },
+        ] },
+        folded
+          ? { type: 'hint', text: 'Inside is the folded spine edge, and it swaps sides from page to page. Give it a little more than the outside or the text creeps into the crease.' }
+          : { type: 'hint', text: 'Wider margins make a shorter line, and a shorter line is easier to read. Somewhere between 60 and 75 characters is the range worth aiming at.' },
+      ],
+    },
+    {
+      title: 'Body text', open: true, fields: [
+        { type: 'select', path: 'body.font', label: 'Font', options: fontOptions },
+        { type: 'number', path: 'body.size', label: 'Size (pt)', min: 5, max: 24, step: 0.25 },
+        { type: 'number', path: 'body.lineHeight', label: 'Line height', min: 0.9, max: 2.4, step: 0.02 },
+        { type: 'seg', path: 'body.align', label: 'Align',
+          options: [['left', 'Left'], ['justify', 'Justify'], ['center', 'Centre']] },
+        { type: 'number', path: 'body.paraSpace', label: 'Space after (em)', min: 0, max: 2, step: 0.05 },
+        { type: 'number', path: 'body.indent', label: 'First-line indent (em)', min: 0, max: 4, step: 0.1 },
+      ],
+    },
+    ...['h1', 'h2', 'h3'].map((h, i) => ({
+      title: `Heading ${i + 1}`, open: false, fields: [
+        { type: 'select', path: `headings.${h}.font`, label: 'Font', options: fontOptions },
+        { type: 'number', path: `headings.${h}.size`, label: 'Size (pt)', min: 6, max: 60, step: 0.5 },
+        { type: 'seg', path: `headings.${h}.weight`, label: 'Weight',
+          options: [[400, 'Regular'], [700, 'Bold']], cast: Number },
+        { type: 'check', path: `headings.${h}.italic`, label: 'Italic' },
+        { type: 'check', path: `headings.${h}.caps`, label: 'All caps' },
+        { type: 'seg', path: `headings.${h}.align`, label: 'Align',
+          options: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']] },
+        { type: 'number', path: `headings.${h}.before`, label: 'Space before (em)', min: 0, max: 4, step: 0.05 },
+        { type: 'number', path: `headings.${h}.after`, label: 'Space after (em)', min: 0, max: 4, step: 0.05 },
+        { type: 'number', path: `headings.${h}.tracking`, label: 'Tracking (em)', min: -0.08, max: 0.4, step: 0.005 },
+      ],
+    })),
+    {
+      title: 'Quote & caption', open: false, fields: [
+        { type: 'select', path: 'quote.font', label: 'Quote font', options: fontOptions },
+        { type: 'number', path: 'quote.size', label: 'Quote size (pt)', min: 5, max: 24, step: 0.25 },
+        { type: 'check', path: 'quote.italic', label: 'Quote italic' },
+        { type: 'number', path: 'quote.indent', label: 'Quote indent (em)', min: 0, max: 4, step: 0.05 },
+        { type: 'select', path: 'caption.font', label: 'Caption font', options: fontOptions },
+        { type: 'number', path: 'caption.size', label: 'Caption size (pt)', min: 4, max: 16, step: 0.25 },
+        { type: 'seg', path: 'caption.align', label: 'Caption align',
+          options: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']] },
+      ],
+    },
+    {
+      title: 'Page numbers', open: false, fields: [
+        { type: 'check', path: 'folio.on', label: 'Show page numbers' },
+        { type: 'seg', path: 'folio.position', label: 'Position',
+          options: [['bottom-outside', folded ? 'Outside' : 'Alternating'], ['bottom-center', 'Centre']] },
+        { type: 'select', path: 'folio.font', label: 'Font', options: fontOptions },
+        { type: 'number', path: 'folio.size', label: 'Size (pt)', min: 4, max: 16, step: 0.25 },
+        { type: 'number', path: 'folio.startAt', label: 'First page is', min: -20, max: 500, step: 1 },
+        { type: 'check', path: 'folio.hideOnFirst', label: 'Hide on the first page' },
+        { type: 'check', path: 'folio.hideOnBlank', label: 'Hide on blank pages' },
+      ],
+    },
+  ];
+}
 
 /** The document group, appended last: actions rather than measurements. */
 export const DOC_SCHEMA = [
   { type: 'action', id: 'save-copy', text: 'Save a copy  ·  .json' },
   { type: 'action', id: 'open-copy', text: 'Open a copy…' },
-  { type: 'hint', text: 'The complete one. Words, pictures and every setting, in a single file. Your zine lives in this browser and nowhere else, so this is how it survives a cleared cache or moves to another machine.' },
+  { type: 'hint', text: 'The complete one. Words, pictures, comments and every setting, in a single file. Your work lives in this browser and nowhere else, so this is how it survives a cleared cache or moves to another machine.' },
 
   { type: 'action', id: 'export-md', text: 'Export Markdown  ·  .md' },
   { type: 'action', id: 'import-md', text: 'Import Markdown…' },
@@ -92,12 +118,20 @@ export const DOC_SCHEMA = [
   { type: 'action', id: 'start-over', text: 'Start over', danger: true },
 ];
 
-/** Options for the press pane, which lives in the Print view instead. */
+/** Options for the press pane, which lives in the Save view instead. */
 export const PRESS_SCHEMA = [
   { type: 'check', path: 'press.foldLine', label: 'Fold line' },
   { type: 'check', path: 'press.cropMarks', label: 'Crop marks' },
   { type: 'check', path: 'press.flipBack', label: 'Rotate back sides 180°' },
   { type: 'hint', text: 'Print double-sided. If the second side comes out upside down relative to the first, turn on the rotate option and export again.' },
+];
+
+/** The drafting room. Few settings on purpose — it is meant to be a bare room. */
+export const DRAFT_SCHEMA = [
+  { type: 'check', path: 'draft.focus', label: 'Fade what is behind you' },
+  { type: 'check', path: 'draft.sound', label: 'Key sound' },
+  { type: 'number', path: 'draft.goal', label: 'Word goal', min: 0, max: 20000, step: 50 },
+  { type: 'hint', text: 'A goal of zero means no goal.' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -234,8 +268,13 @@ export function buildFields(host, fields, settings, onChange) {
 }
 
 export function buildSettingsRail(host, settings, onChange) {
+  host.textContent = '';
   const syncs = [];
-  for (const group of [...SCHEMA, { title: 'Document', open: false, fields: DOC_SCHEMA }]) {
+  const groups = [
+    ...schemaFor(settings),
+    { title: 'Document', open: false, fields: DOC_SCHEMA },
+  ];
+  for (const group of groups) {
     const d = document.createElement('details');
     d.className = 'group';
     d.open = group.open;
