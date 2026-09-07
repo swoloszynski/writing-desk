@@ -1,0 +1,31 @@
+# Response headers, in the format Cloudflare Pages and Netlify both read.
+# Ignored by serve.py, which is why the policy below is also worth testing on a
+# real deployment before trusting it.
+#
+# The point of the content policy is the script line. Everything this
+# application runs is a file in this folder: pdf-lib and fontkit are vendored
+# rather than pulled from a CDN, there is no inline <script>, and no element
+# carries an event-handler attribute. So `script-src 'self'` costs nothing and
+# refuses everything else — including markup smuggled in through a shared link,
+# which is the attack this is a second line against.
+#
+# The exceptions, so nobody removes them and wonders what broke:
+#   style  'unsafe-inline'  applyFlowCSS() injects a <style> element, and six
+#                           elements in index.html carry a style attribute
+#   img    data: blob:      the favicon is a data: SVG; pictures are blob: URLs
+#                           made from IndexedDB
+#   connect data: blob:     unpackImages() reads a data: URL back with fetch()
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+
+# Fonts are content-addressed by name and never change under the same filename.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/js/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
