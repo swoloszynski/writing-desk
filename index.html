@@ -16,7 +16,7 @@
     <input class="doc-title" id="doc-title" value="Untitled" spellcheck="false" aria-label="Title">
 
     <nav class="tabs" id="tabs">
-      <button data-view="draft"><span class="tnum">1</span>Draft</button>
+      <button data-view="draft"><span class="tnum">1</span>Draft<span class="tbadge is-quiet" id="tab-draft" hidden></span></button>
       <button data-view="edit" class="is-on"><span class="tnum">2</span>Edit</button>
       <button data-view="comment"><span class="tnum">3</span>Comment<span class="tbadge" id="tab-comments" hidden></span></button>
       <button data-view="format"><span class="tnum">4</span>Format</button>
@@ -44,7 +44,6 @@
           <span class="hint">Forwards only. No delete, no arrow keys, no cursor to move.</span>
           <div class="spacer"></div>
           <div class="draft-meter" id="draft-meter"></div>
-          <button class="btn" id="draft-help-btn">Keys</button>
           <button class="btn primary" id="draft-done">Take it to Edit</button>
         </div>
 

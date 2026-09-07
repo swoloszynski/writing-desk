@@ -948,7 +948,8 @@ const KEYS = [
   ['⌘⇧8', 'Bullet'],
   ['⌘⇧7', 'Numbered'],
   ['⌘⇧9', 'Quote'],
-  ['↵', 'New line, carrying a list on'],
+  ['↵', 'New paragraph, or the next item of a list'],
+  ['⇧↵', 'New line inside the same paragraph'],
   ['⌫', 'Nothing. That is the point.'],
 ];
 
@@ -971,6 +972,12 @@ function paintDraftMeter() {
   const bar = goal > 0
     ? `<span class="draft-bar"><i style="width:${Math.min(100, (words / goal) * 100).toFixed(1)}%"></i></span>`
     : '';
+  // A draft left in the room is invisible from every other stage, so the tab
+  // says so. Quiet rather than a count: it is a reminder, not a queue.
+  const pending = $('#tab-draft');
+  pending.hidden = words === 0;
+  pending.textContent = '·';
+
   $('#draft-meter').innerHTML =
     `<span><b>${words.toLocaleString()}</b>${goal ? ` / ${goal.toLocaleString()}` : ''} words</span>` +
     bar +
@@ -1014,10 +1021,6 @@ function bindDraft() {
   });
   paintKeys();
   paintDraftMeter();
-
-  $('#draft-help-btn').addEventListener('click', () => {
-    $('#draft-keys').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
 
   $('#draft-done').addEventListener('click', takeDraftToEdit);
 }

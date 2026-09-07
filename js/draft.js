@@ -202,6 +202,7 @@ export class Draft extends EventTarget {
     // caret can be. An empty trailing line still gets one.
     const last = this.lines.lastElementChild;
     if (last) {
+      last.classList.add('is-current');
       if (last.classList.contains('is-blank')) last.textContent = '';
       const caret = document.createElement('span');
       caret.className = 'dcaret';
@@ -230,23 +231,33 @@ export class Draft extends EventTarget {
 
   atLineStart() { return this.lastLine().length === 0; }
 
-  /** Start a fresh line if there is anything on this one. */
-  ensureLineStart() {
-    if (!this.atLineStart()) this.append('\n');
+  /**
+   * Open a fresh block.
+   *
+   * A heading or a list that starts on the line directly under a paragraph is
+   * still part of that paragraph as far as markdown is concerned, so anything
+   * block-shaped needs a blank line in front of it. Adds however much of one
+   * is missing, and nothing at all at the very top of an empty draft.
+   */
+  ensureBlockStart() {
+    const t = this.text;
+    if (!t) return;
+    if (t.endsWith('\n\n')) return;
+    this.append(t.endsWith('\n') ? '\n' : '\n\n');
   }
 
   heading(level) {
-    this.ensureLineStart();
+    this.ensureBlockStart();
     this.append('#'.repeat(level) + ' ');
   }
 
   list(kind) {
-    this.ensureLineStart();
+    this.ensureBlockStart();
     this.append(kind === 'ordered' ? '1. ' : '- ');
   }
 
   quote() {
-    this.ensureLineStart();
+    this.ensureBlockStart();
     this.append('> ');
   }
 
@@ -258,7 +269,13 @@ export class Draft extends EventTarget {
   }
 
   /**
-   * Return, with the list carried on.
+   * Return: a new paragraph, or the next item of a list.
+   *
+   * One press, one paragraph — the thing every other editor does. The draft is
+   * plain text and has to stay valid markdown, where paragraphs are separated
+   * by a blank line, so return writes two newlines rather than one. Inside a
+   * list it writes one and carries the marker on, because blank lines between
+   * bullets would take the list apart.
    *
    * Leaving a list is the one place something gets shorter, and it is worth
    * being clear about why that is allowed: the `- ` being taken away was put
@@ -275,17 +292,24 @@ export class Draft extends EventTarget {
     if (marker && !line.slice(marker[0].length).trim()) {
       this.input.value = this.input.value.slice(0, this.input.value.length - line.length);
       this.commit();
-      this.append('\n');
+      // Taking the marker off already left the newline it sat on, so top the
+      // gap up to a paragraph break rather than adding a whole one.
+      this.ensureBlockStart();
     } else if (bullet) {
       this.append(`\n${bullet[1]}${bullet[2]} `);
     } else if (ordered) {
       this.append(`\n${ordered[1]}${+ordered[2] + 1}${ordered[3]} `);
     } else {
-      this.append('\n');
+      this.append('\n\n');
     }
 
     this.open = { bold: false, italic: false };
     this.dispatchEvent(new CustomEvent('marks', { detail: { ...this.open } }));
+  }
+
+  /** Shift-return: a new line without leaving the paragraph. */
+  softline() {
+    this.append('\n');
   }
 
   nudge(reason) {
@@ -341,7 +365,7 @@ export class Draft extends EventTarget {
 
       if (e.key === 'Enter' && !mod) {
         e.preventDefault();
-        this.newline();
+        if (e.shiftKey) this.softline(); else this.newline();
         this.sound('return');
         return;
       }
@@ -413,7 +437,9 @@ export function draftToSections(text) {
   for (const line of text.split('\n')) {
     const h1 = /^#\s+(.+)$/.exec(line);
     if (h1 || !current) {
-      current = { name: h1 ? h1[1].trim() : 'Opening', lines: [] };
+      // Writing that arrives without a heading has no name of its own, and a
+      // guess dressed up as one is worse than an obvious placeholder.
+      current = { name: h1 ? h1[1].trim() : 'New section', lines: [] };
       out.push(current);
     }
     current.lines.push(line);

@@ -39,7 +39,14 @@ click:
 | `⌘⇧8` | a bullet |
 | `⌘⇧7` | a numbered item |
 | `⌘⇧9` | a quotation |
-| `↵` on a list item | the next item, numbered on |
+| `↵` | a new paragraph, or the next item of a list |
+| `⇧↵` | a new line inside the same paragraph |
+
+Return makes a paragraph, once, the way every other editor does. The draft
+itself is plain text that has to stay valid markdown — where paragraphs are
+separated by a blank line — so return writes two newlines rather than one, and
+you see the gap it makes. Inside a list it writes one and carries the marker
+on, since a blank line between bullets would take the list apart.
 
 The markup stays on the page as characters. Seeing that a `**` is still open
 is the only way to know you have to close it, and with no way back, closing it
@@ -47,6 +54,12 @@ is the only option.
 
 **Take it to Edit** turns the draft into sections — one per level-one heading,
 because that is what a writer means by typing one — and empties the room.
+Writing that arrives with no heading over it becomes a section called *New
+section*, which is a placeholder rather than a guess dressed up as a title.
+
+Nothing is carried over on its own. While there is writing still in the room,
+a dot sits on the Draft tab, since a draft is invisible from every other stage
+and the count in the top bar does not include it.
 
 ### How the refusal works
 
