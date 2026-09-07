@@ -699,10 +699,10 @@ function switchView(next) {
 async function askDraftHandoff(next) {
   const words = countWords(doc.draft.text);
   const yes = await ask({
-    title: 'There is writing still in the drafting room',
-    body: `${words} word${words === 1 ? '' : 's'} that no other stage can see. ` +
-          'Bring them into Edit now, or leave them where they are and come back.',
-    yes: 'Bring them over', no: 'Leave them',
+    title: `You drafted ${words} word${words === 1 ? '' : 's'}!`,
+    body: 'Bring them into edit mode, or leave them where they are and come ' +
+          'back later?',
+    yes: 'Take it to Edit', no: 'Leave in draft',
   });
   if (yes) takeDraftToEdit({ then: next });
   // Declining moves on anyway. The question was whether to carry the draft,
