@@ -214,16 +214,23 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .wd-flow figure.is-selected{ outline:2px solid var(--accent); outline-offset:3px; }
 .wd-flow figure img{ background:#f2f2f4; }
 
-/* A forced break. Its height is the unused rest of the page, so the empty
-   space you can see here is the empty space that gets printed. */
-.wd-flow .wd-break{ position:relative; }
-.wd-flow .wd-break::after{
-  content:'rest of page left blank';
-  position:absolute; left:0; right:0; bottom:5px;
-  font:600 8.5px/1 var(--ui); letter-spacing:.1em; text-transform:uppercase;
-  color:#cbc6d4; text-align:center; pointer-events:none;
+/* A forced break, drawn as a rule through the middle of its gap. */
+.wd-flow .wd-break::before{
+  content:''; position:absolute; left:0; right:0; top:50%;
+  border-top:1px dashed rgba(0,0,0,.17);
 }
-.wd-flow .wd-break[style*="height: 0"]::after{ content:none; }
+.wd-flow .wd-break::after{
+  content:'page break';
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  background:var(--paper); padding:0 8px;
+  font:600 8.5px/1 var(--ui); letter-spacing:.1em; text-transform:uppercase;
+  color:#bfbaca; pointer-events:none;
+}
+/* Not on the previews or the printed sheet: a page break is a thing the
+   editor tells you about, not a thing that appears on the paper. The gap
+   itself has to stay, because the page offsets are measured through it. */
+.wd-flow-clone .wd-break::before,
+.wd-flow-clone .wd-break::after{ display:none; }
 
 /* --- figure popover ------------------------------------------------------ */
 

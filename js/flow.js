@@ -113,15 +113,19 @@ ${headingRule('h3', settings.headings.h3)}
 }
 .wd-flow p.wd-caption{ margin:0 0 ${b.paraSpace}em; }
 
-/* A forced page break. Zero height so it never moves the text around it. */
+/* A forced page break: a gap you can see, rather than the whole unused rest
+   of the page. The page still ends here — see repaginate() in js/app.js — and
+   Format is where the real empty space gets shown. */
 .wd-flow .wd-break{
-  height:0; margin:0; padding:0; border:0;
-  display:block; overflow:visible;
+  height:${BREAK_GAP_PX}px; margin:0; padding:0; border:0;
+  display:block; overflow:visible; position:relative;
 }
 `;
 }
 
 export const LIST_INDENT_EM = 1.15;
+/** How much room a forced break takes in the editor's column. Pixels. */
+export const BREAK_GAP_PX = 54;
 export const HR_WEIGHT_PX = 1;
 
 let styleEl = null;

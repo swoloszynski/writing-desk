@@ -86,47 +86,24 @@ function schedule({ structural = false } = {}) {
 }
 
 /**
- * Break, measure, then let each forced break swell to fill out its page.
+ * Where the pages break.
  *
- * Without this the galley runs straight on past a break and the editor shows
- * a title page with the next chapter jammed underneath it. Giving the break
- * the leftover of its page as height puts the empty space on screen where it
- * will be on paper. It cannot feed back: everything before the break is
- * untouched, so the same gap is measured again on the second pass.
+ * A forced break used to swell to the whole unused rest of its page, so the
+ * editor showed that empty space exactly as it would be printed. It was
+ * truthful and it read badly: half a page of nothing in the middle of the
+ * column you are writing in cuts the thread, and you have to scroll past your
+ * own blank paper to reach the next paragraph. So the break is a modest gap
+ * here, and Format is where the real space is shown — looking at pages is
+ * that stage's whole job.
+ *
+ * Pagination is unaffected either way. A break ends its page because it is a
+ * break, not because of how tall it is, and the previews window into the
+ * galley by offset — so a page that ended early simply has less in its
+ * window, which is what an early ending means.
  */
-function fillForcedBreaks(contentH, offs) {
-  const breaks = flow.querySelectorAll('.wd-break');
-  if (!breaks.length) return false;
-
-  const base = flow.getBoundingClientRect().top;
-
-  // Measure every break before changing any of them. Setting one break's
-  // height shifts the ones below it, and their offsets would no longer be in
-  // the same coordinate space as the page starts we are comparing to.
-  const gaps = Array.from(breaks, b => {
-    const top = b.getBoundingClientRect().top - base;
-    let p = 0;
-    for (let i = 0; i < offs.length; i++) if (top >= offs[i] + 0.5) p = i;
-    const used = top - offs[p];
-    return used < 0.5 ? 0 : Math.max(0, contentH - used);
-  });
-
-  let any = false;
-  breaks.forEach((b, i) => {
-    if (gaps[i] > 0.5) any = true;
-    b.style.height = `${gaps[i]}px`;
-  });
-  return any;
-}
-
 function repaginate() {
   const m = Doc.metrics(doc.settings);
-  flow.querySelectorAll('.wd-break').forEach(b => { b.style.height = '0px'; });
-  let result = paginate(flow, m.contentH);
-  if (fillForcedBreaks(m.contentH, result.offsets)) {
-    result = paginate(flow, m.contentH);
-  }
-  offsets = result.offsets;
+  offsets = paginate(flow, m.contentH).offsets;
 
   renderSeams(seams, offsets, doc.settings);
   paintMarks();
