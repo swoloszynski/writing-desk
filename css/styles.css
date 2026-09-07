@@ -283,7 +283,13 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 
 .seg{ display:flex; background:var(--bg); border:1px solid var(--line);
       border-radius:7px; padding:2px; gap:2px; }
-.seg button{ flex:1; padding:5px 0; border-radius:5px; color:var(--dim); font-size:13.5px; }
+/* Horizontal padding, not just vertical: in a rail the buttons are stretched
+   by `flex:1` and look fine on their own, but in a toolbar the group is only
+   as wide as its labels and they end up shoulder to shoulder. */
+.seg button{
+  flex:1; padding:5px 12px; border-radius:5px;
+  color:var(--dim); font-size:13.5px; white-space:nowrap;
+}
 .seg button.is-on{ background:var(--panel-2); color:var(--ink); }
 
 .field.stack{ flex-direction:column; align-items:stretch; gap:5px; }
