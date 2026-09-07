@@ -154,7 +154,7 @@ main{ flex:1; min-height:0; position:relative; }
 .tbtn.u{ text-decoration:underline; }
 .tbtn svg{ width:15px; height:15px; flex:0 0 auto; }
 .tbtn > span{ margin-left:6px; font-size:13px; }
-#to-format{ padding:0 10px; }
+#toggle-notes{ padding:0 10px; }
 
 select.tsel, input.tnum{
   height:32px; background:var(--bg); border:1px solid var(--line);

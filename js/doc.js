@@ -68,6 +68,10 @@ export function defaultSettings() {
              exportMode: 'reading' },
 
     draft: { sound: false, focus: true, goal: 0, panel: true },
+
+    // Whether Edit shows the comments beside the writing. Comment always
+    // does, whatever this says.
+    showComments: true,
   };
 }
 

@@ -326,6 +326,17 @@ function reanchorAll() {
   }
 }
 
+/** Comment is always annotating; Edit only when you have asked it to. */
+const notesShown = () => view === 'comment' || doc.settings.showComments !== false;
+
+function paintNotesToggle() {
+  const on = doc.settings.showComments !== false;
+  $('#toggle-notes').classList.toggle('is-on', on);
+  $('#toggle-notes-label').textContent = on ? 'Comments' : 'Comments off';
+  $('#edit-notes').hidden = !on;
+  marks.hidden = !notesShown();
+}
+
 // Which comments are currently adrift. Repainting the thread list on every
 // keystroke would take the box somebody is typing a note into away from them,
 // so it is only rebuilt when this actually changes.
@@ -333,6 +344,7 @@ let orphanSignature = '';
 
 function paintMarks() {
   reanchorAll();
+  marks.hidden = !notesShown();
   Notes.paintHighlights(flow, marks, doc.comments, { activeId: activeComment });
 
   const now = doc.comments.filter(c => c.orphaned).map(c => c.id).join(',');
@@ -536,7 +548,10 @@ function bindCommentBar() {
 
   const place = () => {
     const sel = getSelection();
-    if (!sel || sel.isCollapsed || !sel.rangeCount || view !== 'edit'
+    // Comments hidden means you are not commenting, so the button that makes
+    // one has no business appearing over a selection.
+    const here = view === 'edit' && notesShown();
+    if (!sel || sel.isCollapsed || !sel.rangeCount || !here
         || !Notes.selectionSection(flow)) {
       bar.classList.remove('is-on');
       return;
@@ -1243,7 +1258,12 @@ function bindToolbar() {
 
   $('#add-section').addEventListener('click', addSection);
   $('#add-section-2').addEventListener('click', addSection);
-  $('#to-format').addEventListener('click', () => switchView('format'));
+  $('#toggle-notes').addEventListener('click', () => {
+    doc.settings.showComments = doc.settings.showComments === false;
+    save();
+    paintNotesToggle();
+    paintMarks();
+  });
 
   document.addEventListener('selectionchange', paintToolbarState);
 }
@@ -1698,6 +1718,7 @@ async function boot() {
   bindExportMode();
   bindCommentBar();
   bindDraft();
+  paintNotesToggle();
   installMarkdownInput(editor);
 
   $('#who').value = Notes.whoAmI();
