@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "writing-desk",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["serve.py", "4175"],
+      "port": 4175
+    }
+  ]
+}
