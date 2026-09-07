@@ -168,9 +168,12 @@
 
         <div class="rail-head"><span>You</span></div>
         <div class="group-body">
-          <div class="field">
+          <div class="field stack">
             <label for="who">Sign notes as</label>
             <input id="who" class="text-input" placeholder="Your name" spellcheck="false">
+          </div>
+          <div class="hint">
+            Kept in this browser only, so your notes arrive with a name on them.
           </div>
         </div>
       </aside>
@@ -231,7 +234,7 @@
       <aside class="rail left">
         <div class="rail-head"><span>Export</span></div>
         <div class="export-box">
-          <div class="field stack">
+          <div class="field stack" id="export-mode-field">
             <label for="export-mode">What to write</label>
             <div class="seg vertical" id="export-mode">
               <button data-mode="reading" class="is-on">PDF · reading order</button>

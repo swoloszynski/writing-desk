@@ -711,6 +711,8 @@ function paintExportMode() {
   const mode = exportMode();
   $('#mode-press').hidden = !folded;
   $('#mode-both').hidden = !folded;
+  // With nothing to choose between, a chooser is just a label with a border.
+  $('#export-mode-field').hidden = !folded;
   $('#press-head').hidden = !folded;
   $('#press-fields').hidden = !folded;
   $('#press-hint').hidden = !folded;
