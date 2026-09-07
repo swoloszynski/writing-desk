@@ -102,8 +102,8 @@ retitle, add a picture, break the piece into sections.
 Sections are the draggable unit, not pages. Text that reflows and pages you
 can drag are contradictory — add a sentence and every later page break moves,
 so a page is not a thing that can hold a position. Sections reorder; pages
-fall where the text puts them. Ticking **New page** starts a section at the
-top of a fresh sheet, and `⌘↵` drops a break anywhere else.
+fall where the text puts them. Ticking **Start on a new page** begins a
+section at the top of a fresh sheet, and `⌘↵` drops a break anywhere else.
 
 You can type markdown at it and get the thing itself. The markup never
 survives: it is swapped for real formatting the moment you finish it, and
@@ -243,9 +243,17 @@ a weight along an axis, but the PDF embeds a *file*, and an embedded variable
 font arrives at its default instance — bold would come out regular with nothing
 to indicate it.
 
-On folded paper the export panel also offers **print and fold order**: the
-sheets in the order the printer needs them, blanks added at the end to round
-the count up to a multiple of four. Print at 100% — no "fit to page", which
+**Print and fold order** is the other way out: the sheets in the order the
+printer needs them, two pages to a sheet, blanks added at the end to round the
+count up to a multiple of four.
+
+It is offered whatever paper you are on, but it is not a thing that can be
+applied to a finished US Letter document on the way out. Fold a sheet in half
+and you have two pages, each half the width — so a booklet has to have been
+*laid out* in half pages or the preview is showing something the PDF will not
+contain. Choosing it on paper that does not fold offers to change the paper
+first, keeping your margins and type and reflowing the text. You can switch
+back in Format. Print at 100% — no "fit to page", which
 would shrink the sheet and put the margins somewhere else — double-sided, fold
 the whole stack together, staple twice on the fold. If the second side comes
 out upside down relative to the first, that is your printer's duplex flip and
@@ -288,8 +296,18 @@ the Format rail and again under Save, writes the whole thing — pictures and
 comments included — to a single `.json` file you can keep somewhere else or
 open on another machine.
 
+The stage you were last on is kept too, so reopening a document puts you back
+where you left it rather than at whichever stage happens to be second.
+
 Storage is per-origin, so work done on `localhost` does not follow you to a
 deployed copy.
+
+Every question the application asks — deleting a section, throwing a document
+away, opening a file over the top of one — is asked in the page rather than
+through `confirm`. Embedded browser views, pages the browser has been told to
+stop showing dialogs for, and several mobile browsers all answer `confirm`
+with a silent no, which turns a destructive button into a button that appears
+to be broken.
 
 ---
 

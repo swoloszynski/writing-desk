@@ -41,11 +41,15 @@
       <div class="stage draft-stage">
         <div class="toolbar">
           <strong class="tlabel">Draft</strong>
-          <span class="hint">Forwards only. No delete, no arrow keys, no cursor to move.</span>
           <div class="spacer"></div>
           <div class="draft-meter" id="draft-meter"></div>
           <button class="btn" id="draft-panel">Hide panel</button>
           <button class="btn primary" id="draft-done">Take it to Edit</button>
+        </div>
+
+        <div class="draft-note">
+          Get it down and don’t worry about cleaning it up. In draft mode,
+          there is no delete or arrow keys to go backward. Keep going!
         </div>
 
         <div class="draft-canvas" id="draft-canvas">
@@ -79,7 +83,8 @@
         <div class="sections" id="section-list"></div>
         <div class="hint" style="padding:0 13px 18px">
           Drag to reorder. The text flows through the sections in this order;
-          tick <b>New page</b> to make one start at the top of a fresh page.
+          tick <b>Start on a new page</b> to make one begin at the top of a
+          fresh page.
         </div>
       </aside>
 
@@ -338,6 +343,16 @@
   <button class="tbtn" id="fig-caption" title="Caption">Aa</button>
   <button class="tbtn" id="fig-delete" title="Remove">✕</button>
 </div>
+
+<dialog class="sheetbox" id="ask-dialog">
+  <h3 id="ask-title"></h3>
+  <p class="ask-body" id="ask-body"></p>
+  <input id="ask-input" class="text-input" spellcheck="false" hidden>
+  <div class="row">
+    <button class="btn" id="ask-no">Cancel</button>
+    <button class="btn primary" id="ask-yes">OK</button>
+  </div>
+</dialog>
 
 <dialog class="sheetbox" id="link-dialog">
   <h3 id="link-title">Reading link</h3>

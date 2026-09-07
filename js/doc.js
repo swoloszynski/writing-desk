@@ -26,6 +26,9 @@ export const PAPER = {
   'zine-a4':     { name: 'Zine · A4 folded',     sheetW: 11.69, sheetH: 8.27, pageW: 5.845, pageH: 8.27, fold: true },
 };
 
+/** The stages, for validating a remembered one. */
+export const STAGES = new Set(['draft', 'edit', 'comment', 'format', 'save', 'send']);
+
 export const PAPER_KEYS = Object.keys(PAPER);
 export const paperOf = settings => PAPER[settings.paper] || PAPER.letter;
 export const isFolded = settings => paperOf(settings).fold;
@@ -83,6 +86,9 @@ export function defaultDoc() {
     title: 'Untitled',
     author: '',
     settings: defaultSettings(),
+    // The stage you were on last. Coming back to a document should put you
+    // where you left it, not at whichever stage happens to be second.
+    stage: 'edit',
     draft: defaultDraft(),
     comments: [],
     // True until somebody types. It is what lets a first draft replace the
@@ -173,6 +179,7 @@ export function adoptShape(saved) {
   doc.draft = { ...defaultDraft(), ...(saved.draft || {}) };
   doc.comments = Array.isArray(saved.comments) ? saved.comments.map(normalizeComment) : [];
   doc.sampleIntact = saved.sampleIntact === true;
+  doc.stage = STAGES.has(saved.stage) ? saved.stage : doc.stage;
   if (Array.isArray(saved.sections) && saved.sections.length) {
     doc.sections = saved.sections.map(normalizeSection);
   }

@@ -208,7 +208,7 @@ function sectionCard(s) {
       <button class="sec-del" title="Delete section">✕</button>
     </div>
     <div class="sec-meta">
-      <label><input type="checkbox" class="sec-new"> New page</label>
+      <label><input type="checkbox" class="sec-new"> Start on a new page</label>
       <span class="sec-pages"></span>
     </div>`;
 
@@ -227,10 +227,19 @@ function sectionCard(s) {
     renderSectionLists();
   });
 
-  el.querySelector('.sec-del').addEventListener('click', e => {
+  el.querySelector('.sec-del').addEventListener('click', async e => {
     e.stopPropagation();
     if (doc.sections.length === 1) return toast('A document needs at least one section.');
-    if (!confirm(`Delete “${s.name}” and everything in it?`)) return;
+    const words = countWords(new DOMParser()
+      .parseFromString(s.html, 'text/html').body.textContent);
+    const ok = await ask({
+      title: `Delete “${s.name}”?`,
+      body: `${words} word${words === 1 ? '' : 's'} go with it, and there is no undo. ` +
+            'Comments on this section are kept, marked as pointing at writing that ' +
+            'is no longer here.',
+      yes: 'Delete the section', danger: true,
+    });
+    if (!ok) return;
     doc.sections = doc.sections.filter(x => x.id !== s.id);
     // Notes on a section that no longer exists have nothing to point at. They
     // are kept and marked, not deleted: somebody wrote them.
@@ -418,8 +427,15 @@ function threadCard(c, { compact = false } = {}) {
   if (!reviewing || c.author === Notes.whoAmI()) {
     const del = document.createElement('button');
     del.textContent = 'Delete';
-    del.addEventListener('click', () => {
-      if (!confirm('Delete this comment and its replies?')) return;
+    del.addEventListener('click', async () => {
+      const ok = await ask({
+        title: 'Delete this comment?',
+        body: c.replies.length
+          ? `Its ${c.replies.length} repl${c.replies.length === 1 ? 'y' : 'ies'} go with it.`
+          : '',
+        yes: 'Delete', danger: true,
+      });
+      if (!ok) return;
       doc.comments = doc.comments.filter(x => x.id !== c.id);
       if (activeComment === c.id) activeComment = null;
       save();
@@ -537,13 +553,22 @@ function bindCommentBar() {
   $('#canvas').addEventListener('scroll', place);
 
   $('#add-comment').addEventListener('mousedown', e => e.preventDefault());
-  $('#add-comment').addEventListener('click', () => {
-    if (!Notes.whoAmI()) {
-      const name = prompt('Notes are signed. What should yours say?', '')?.trim();
-      if (name) Notes.setWhoAmI(name);
-    }
+  $('#add-comment').addEventListener('click', async () => {
+    // Take the passage first. Opening a dialog moves the focus and the
+    // selection goes with it, and the selection is what the comment is made of.
     const c = Notes.commentFromSelection(flow, { author: Notes.whoAmI() });
     if (!c) return toast('Select a passage inside one section first.');
+
+    if (!Notes.whoAmI()) {
+      const name = await ask({
+        title: 'What should your notes be signed?',
+        body: 'Kept in this browser only, so whoever reads them knows who wrote them.',
+        yes: 'Save', input: true, placeholder: 'Your name',
+      });
+      if (name) Notes.setWhoAmI(name);
+      $('#who').value = Notes.whoAmI();
+      c.author = Notes.whoAmI() || 'Anonymous';
+    }
     doc.comments.push(c);
     activeComment = c.id;
     bar.classList.remove('is-on');
@@ -661,22 +686,35 @@ function switchView(next) {
   if (reviewing && !['edit', 'comment'].includes(next)) return;
 
   // Leaving the drafting room with writing still in it. A draft is invisible
-  // from every other stage, so walking away from one without being asked is
-  // how it gets forgotten — and the dot on the tab is a reminder, not a
-  // question. Cancel leaves it exactly where it is.
+  // from every other stage, so walking away from one unasked is how it gets
+  // forgotten — the dot on the tab is a reminder, not a question. Asking has
+  // to wait for an answer, so the switch itself happens on the other side.
   if (view === 'draft' && next !== 'draft' && doc.draft.text.trim()) {
-    const words = countWords(doc.draft.text);
-    if (confirm(
-      `${words} word${words === 1 ? '' : 's'} are still in the drafting room, ` +
-      'where nothing else can see them.\n\n' +
-      'Bring them into Edit now? Cancel leaves them where they are.'
-    )) {
-      takeDraftToEdit({ then: next });
-      return;
-    }
+    askDraftHandoff(next);
+    return;
   }
+  applyView(next);
+}
 
+async function askDraftHandoff(next) {
+  const words = countWords(doc.draft.text);
+  const yes = await ask({
+    title: 'There is writing still in the drafting room',
+    body: `${words} word${words === 1 ? '' : 's'} that no other stage can see. ` +
+          'Bring them into Edit now, or leave them where they are and come back.',
+    yes: 'Bring them over', no: 'Leave them',
+  });
+  if (yes) takeDraftToEdit({ then: next });
+  // Declining moves on anyway. The question was whether to carry the draft,
+  // not whether to leave the room, and asking again on the way out of every
+  // stage would be nagging.
+  else applyView(next);
+}
+
+function applyView(next) {
   view = next;
+  doc.stage = next;
+  save();
   $$('.view').forEach(v => v.classList.toggle('is-on', v.id === `view-${next}`));
   $$('#tabs button').forEach(b => b.classList.toggle('is-on', b.dataset.view === next));
   if (next === 'format') paintPageGrid();
@@ -726,10 +764,10 @@ function exportMode() {
 function paintExportMode() {
   const folded = Doc.isFolded(doc.settings);
   const mode = exportMode();
-  $('#mode-press').hidden = !folded;
-  $('#mode-both').hidden = !folded;
-  // With nothing to choose between, a chooser is just a label with a border.
-  $('#export-mode-field').hidden = !folded;
+  // Both orders are always on offer, because "can I print this as a folded
+  // booklet" is a question about the document, not about a setting you are
+  // expected to have found first. Choosing one on paper that does not fold
+  // asks to change the paper; see chooseExportMode.
   $('#press-head').hidden = !folded;
   $('#press-fields').hidden = !folded;
   $('#press-hint').hidden = !folded;
@@ -777,13 +815,45 @@ function paintSave() {
     .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
 }
 
+/** Folding this paper in half gives you these pages. */
+const FOLDS_INTO = {
+  letter: 'zine-letter', digest: 'zine-letter',
+  a4: 'zine-a4', a5: 'zine-a4',
+};
+
+/**
+ * Choose an export order, changing the paper if the order requires it.
+ *
+ * A booklet is set in half pages: fold a sheet down the middle and you have
+ * two pages, each half the width. So imposition is not a thing that can be
+ * applied to a finished US Letter document on the way out — the text has to
+ * have been laid out at the size it will print, or the preview is showing
+ * something the PDF will not contain. Rather than hide the option until the
+ * paper happens to be right, it is offered and it says what it costs.
+ */
+async function chooseExportMode(mode) {
+  if ((mode === 'press' || mode === 'both') && !Doc.isFolded(doc.settings)) {
+    const target = FOLDS_INTO[doc.settings.paper] || 'zine-letter';
+    const ok = await ask({
+      title: 'A booklet is set in half pages',
+      body: `Folding a sheet in half makes two pages out of it, so the paper has to ` +
+            `be ${Doc.PAPER[target].name} for the text to be laid out at the size it ` +
+            `will actually print. Your margins and type settings are kept — the text ` +
+            `reflows and the page count changes. You can switch back in Format.`,
+      yes: 'Switch the paper',
+    });
+    if (!ok) return;
+    doc.settings.paper = target;
+    onSettingChange({ path: 'paper' });
+  }
+  doc.settings.press.exportMode = mode;
+  save();
+  paintSave();
+}
+
 function bindExportMode() {
   $$('#export-mode button').forEach(b =>
-    b.addEventListener('click', () => {
-      doc.settings.press.exportMode = b.dataset.mode;
-      save();
-      paintSave();
-    }));
+    b.addEventListener('click', () => chooseExportMode(b.dataset.mode)));
 }
 
 const slug = () => (doc.title || 'document').trim().toLowerCase()
@@ -1015,7 +1085,7 @@ function paintDraftMeter() {
 }
 
 const REFUSALS = {
-  delete: 'No going back. Write your way out of it.',
+  delete: 'In draft mode, there is no delete. Write your way out!',
   undo: 'Nothing to undo — nothing has been taken away.',
   move: 'The cursor stays at the end. Keep going.',
   drop: 'Text can only arrive at the end.',
@@ -1028,9 +1098,23 @@ function bindDraft() {
   draft.addEventListener('refused', e => {
     const el = $('#draft-refusal');
     el.textContent = REFUSALS[e.detail.reason] || '';
+
+    // Beside the line you are on, not at the foot of the window. The eye is
+    // at the caret — that is the whole point of the room — so a notice
+    // anywhere else is a notice nobody reads.
+    const line = $('#draft-column .dline.is-current');
+    const stage = $('.draft-stage');
+    if (line && stage) {
+      const r = line.getBoundingClientRect();
+      const box = stage.getBoundingClientRect();
+      el.style.left = `${Math.round(r.left - box.left)}px`;
+      el.style.top =
+        `${Math.round(Math.min(r.bottom - box.top + 12, box.height - 56))}px`;
+    }
+
     el.classList.add('is-on');
     clearTimeout(refusalTimer);
-    refusalTimer = setTimeout(() => el.classList.remove('is-on'), 1800);
+    refusalTimer = setTimeout(() => el.classList.remove('is-on'), 2600);
   });
 
   draft.addEventListener('change', () => { paintDraftMeter(); save(); });
@@ -1250,6 +1334,7 @@ function adopt(next) {
   doc.comments = next.comments ?? [];
   doc.draft = next.draft ?? Doc.defaultDraft();
   doc.sampleIntact = !!next.sampleIntact;
+  doc.stage = Doc.STAGES.has(next.stage) ? next.stage : 'edit';
   for (const key of Object.keys(doc.settings)) delete doc.settings[key];
   Object.assign(doc.settings, next.settings);
 }
@@ -1269,7 +1354,7 @@ function reload() {
   draft?.render();
   paintDraftPanel();
   paintDraftMeter();
-  switchView('edit');
+  applyView(reviewing ? 'edit' : (doc.stage || 'edit'));
   save({ now: true });
 }
 
@@ -1290,15 +1375,23 @@ async function openCopy(file) {
     if (parsed?.kind === 'notes') return applyNotes(JSON.stringify(parsed));
     if (parsed?.kind === 'read') {
       Share.checkPayload(parsed, 'read');
-      if (!confirm(`Open “${parsed.title}” to read and comment on? ` +
-                   'This replaces what is open now.')) return;
+      if (!await ask({
+        title: `Read “${parsed.title}”?`,
+        body: 'This replaces what is on screen. Your own document stays saved in ' +
+              'this browser and comes back when you reload.',
+        yes: 'Open it',
+      })) return;
       await Doc.unpackImages(parsed.images);
       enterReview(parsed);
       return;
     }
 
     const restored = await Doc.deserialize(parsed);
-    if (!confirm(`Open “${restored.title}”? This replaces what is open now.`)) return;
+    if (!await ask({
+      title: `Open “${restored.title}”?`,
+      body: 'This replaces what is open now. Save a copy first if you have not.',
+      yes: 'Open it', danger: true,
+    })) return;
     adopt(restored);
     reload();
     Doc.collectGarbage(doc);
@@ -1316,13 +1409,15 @@ async function openCopy(file) {
  * type, so the sensible reading of a file that is silent on them is that they
  * do not change, rather than that they should snap back to the defaults.
  */
-function importMarkdownText(text, { name = 'Markdown', confirmFirst = true } = {}) {
+async function importMarkdownText(text, { name = 'Markdown', confirmFirst = true } = {}) {
   const parsed = fromMarkdown(text);
   const title = parsed.title || name.replace(/\.(md|markdown|txt)$/i, '') || doc.title;
 
-  if (confirmFirst &&
-      !confirm(`Open “${title}”? This replaces what is open now.\n\n` +
-               'Cancel if you have not saved a copy of it.')) {
+  if (confirmFirst && !await ask({
+    title: `Open “${title}”?`,
+    body: 'This replaces what is open now. Save a copy first if you have not.',
+    yes: 'Open it', danger: true,
+  })) {
     return false;
   }
 
@@ -1369,8 +1464,13 @@ async function importMarkdownFile(file) {
   }
 }
 
-function startOver() {
-  if (!confirm('Throw this away and start again? This cannot be undone.')) return;
+async function startOver() {
+  if (!await ask({
+    title: 'Throw this away and start again?',
+    body: 'The writing, the draft, the comments and the settings all go. There is ' +
+          'no undo, and nothing is kept anywhere else.',
+    yes: 'Throw it away', danger: true,
+  })) return;
   Doc.clearSaved();
   adopt(Doc.defaultDoc());
   reload();
@@ -1493,6 +1593,68 @@ async function handleIncoming() {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Ask a question and wait for the answer.
+ *
+ * `confirm` and `prompt` are not dependable surfaces any more: an embedded
+ * browser view, a page the user has told the browser to stop showing dialogs
+ * for, and several mobile browsers all return false without drawing anything
+ * at all. A destructive action that silently does nothing is worse than one
+ * that asks twice, so the asking is done in the page.
+ *
+ * @returns {Promise<boolean|string|null>} with `input: true`, the text typed
+ *   or null if it was cancelled; otherwise a plain yes or no.
+ */
+function ask({ title, body, yes = 'OK', no = 'Cancel', danger = false,
+               input = false, placeholder = '', value = '' } = {}) {
+  const dlg = $('#ask-dialog');
+  const field = $('#ask-input');
+
+  $('#ask-title').textContent = title;
+  $('#ask-body').textContent = body || '';
+  $('#ask-body').hidden = !body;
+  $('#ask-yes').textContent = yes;
+  $('#ask-no').textContent = no;
+  $('#ask-yes').classList.toggle('danger', danger);
+  field.hidden = !input;
+  field.value = value;
+  field.placeholder = placeholder;
+
+  return new Promise(resolve => {
+    let answered = false;
+    const finish = ok => {
+      if (answered) return;
+      answered = true;
+      const text = field.value.trim();
+      cleanup();
+      dlg.close();
+      resolve(input ? (ok ? text : null) : ok);
+    };
+    const onYes = () => finish(true);
+    const onNo = () => finish(false);
+    const onKey = e => { if (e.key === 'Enter') { e.preventDefault(); finish(true); } };
+    // Escape closes a dialog without going through either button.
+    const onCancel = () => finish(false);
+    const cleanup = () => {
+      $('#ask-yes').removeEventListener('click', onYes);
+      $('#ask-no').removeEventListener('click', onNo);
+      field.removeEventListener('keydown', onKey);
+      dlg.removeEventListener('cancel', onCancel);
+      dlg.removeEventListener('close', onCancel);
+    };
+
+    $('#ask-yes').addEventListener('click', onYes);
+    $('#ask-no').addEventListener('click', onNo);
+    field.addEventListener('keydown', onKey);
+    dlg.addEventListener('cancel', onCancel);
+    dlg.addEventListener('close', onCancel);
+
+    dlg.showModal();
+    (input ? field : $('#ask-yes')).focus();
+    if (input) field.select();
+  });
+}
+
 let toastTimer = null;
 function toast(msg, isError = false) {
   const el = $('#toast');
@@ -1578,7 +1740,7 @@ async function boot() {
   editor.render();
   renderSectionLists();
   paintThreads();
-  if (!took) switchView('edit');
+  if (!took) applyView(doc.stage || 'edit');
 
   // Everything is measured, so nothing may be measured against a fallback
   // face: one wrong metric moves every page break in the document.

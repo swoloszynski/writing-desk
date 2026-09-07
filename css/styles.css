@@ -84,6 +84,7 @@ button{ background:none; border:0; cursor:pointer; }
 .btn{
   padding:6px 13px; border-radius:7px; border:1px solid var(--line);
   background:var(--panel-2); color:var(--ink); font-weight:500;
+  flex:0 0 auto; white-space:nowrap;
   transition:border-color .12s, background .12s;
 }
 .btn:hover{ border-color:var(--dimmer); }
@@ -446,6 +447,14 @@ body.is-reviewing .sec{ cursor:pointer; }
 
 .draft-stage{ position:relative; }
 
+/* The one line of instruction the room needs, on its own line — in the
+   toolbar it fought the buttons for room and folded them in half. */
+.draft-note{
+  flex:0 0 auto; padding:10px 16px;
+  font-size:13.5px; line-height:1.45; color:var(--dim);
+  background:var(--panel); border-bottom:1px solid var(--line);
+}
+
 .draft-canvas{
   flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain;
   position:relative; padding:8vh 0 44vh;
@@ -522,11 +531,16 @@ body.is-reviewing .sec{ cursor:pointer; }
 }
 
 .draft-refusal{
-  position:absolute; left:50%; bottom:20px; transform:translateX(-50%);
-  font-size:13.5px; color:var(--dimmer); pointer-events:none;
-  opacity:0; transition:opacity .2s;
+  position:absolute; left:0; top:0; max-width:min(430px, 70vw);
+  padding:9px 14px; border-radius:9px;
+  background:var(--panel-2); border:1px solid var(--accent);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  font:500 15px/1.4 var(--ui); color:var(--ink);
+  pointer-events:none; z-index:20;
+  opacity:0; transform:translateY(-4px);
+  transition:opacity .16s, transform .16s;
 }
-.draft-refusal.is-on{ opacity:1; }
+.draft-refusal.is-on{ opacity:1; transform:translateY(0); }
 
 .draft-meter{
   display:flex; align-items:center; gap:12px; margin-right:10px;
@@ -634,7 +648,11 @@ body.is-reviewing .sec{ cursor:pointer; }
   border-radius:7px; padding:8px 10px; resize:vertical; color:var(--dim);
   font:12.5px/1.6 'Courier Prime', ui-monospace, monospace; word-break:break-all;
 }
-.sheetbox .row{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+.sheetbox .row{ display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+.sheetbox .btn{ padding:8px 15px; }
+.sheetbox .btn.primary.danger{ background:var(--accent); border-color:var(--accent); }
+.ask-body{ color:var(--dim); font-size:14px; line-height:1.55; }
+#ask-input{ margin-top:4px; }
 
 /* --- the stage that is not built yet ------------------------------------- */
 
