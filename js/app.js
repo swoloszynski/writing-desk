@@ -33,7 +33,7 @@ import * as Share from './share.js';
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-const doc = Doc.load();
+const doc = Doc.defaultDoc();
 let offsets = [0];
 let view = 'edit';
 let reviewing = false;
@@ -1429,6 +1429,10 @@ function bindFigureBar() {
  */
 function adopt(next) {
   doc.version = next.version;
+  doc.id = next.id || doc.id;
+  doc.status = next.status || 'drafting';
+  doc.updatedAt = next.updatedAt || new Date().toISOString();
+  doc.words = next.words || 0;
   doc.title = next.title;
   doc.author = next.author ?? '';
   doc.sections = next.sections;
@@ -1443,6 +1447,7 @@ function adopt(next) {
 /** Everything that has to happen after the document underneath us changes. */
 function reload() {
   $('#doc-title').value = doc.title;
+  $('#doc-status').value = doc.status;
   document.title = `${doc.title || 'Untitled'} — Writing Desk`;
   applyFlowCSS(doc.settings);
   clearMetricCache();
@@ -1568,13 +1573,15 @@ async function importMarkdownFile(file) {
 
 async function startOver() {
   if (!await ask({
-    title: 'Throw this away and start again?',
-    body: 'The writing, the draft, the comments and the settings all go. There is ' +
-          'no undo, and nothing is kept anywhere else.',
+    title: `Empty “${doc.title}” and start again?`,
+    body: 'The writing, the draft, the comments and the settings of this ' +
+          'document all go. Your other documents are not touched. There is no ' +
+          'undo.',
     yes: 'Throw it away', danger: true,
   })) return;
-  Doc.clearSaved();
-  adopt(Doc.defaultDoc());
+  const fresh = Doc.newDocument({ title: doc.title });
+  fresh.id = doc.id;          // the same sheet of paper, wiped
+  adopt(fresh);
   reload();
   Doc.collectGarbage(doc);
 }
@@ -1773,6 +1780,260 @@ function ask({ title, body, yes = 'OK', no = 'Cancel', danger = false,
   });
 }
 
+// ---------------------------------------------------------------------------
+// The desk
+// ---------------------------------------------------------------------------
+
+/**
+ * A small, fixed tilt for a sheet, derived from its id.
+ *
+ * Paper does not land square on a desk, and a grid of perfectly aligned
+ * rectangles is a list wearing a costume. Derived rather than random so a
+ * given document always lies the same way round — a sheet that reshuffles
+ * itself every time you look at the desk is a distraction, not a detail.
+ */
+function tiltOf(id) {
+  let n = 0;
+  for (const ch of id) n = (n * 31 + ch.charCodeAt(0)) % 1000;
+  return ((n / 1000) * 2.2 - 1.1).toFixed(2);
+}
+
+/**
+ * The opening words of a document, for the face of its card.
+ *
+ * Headings are skipped. The card already shows the title, and a preview that
+ * starts by repeating it tells you nothing you did not have a moment ago.
+ */
+function peekAt(d) {
+  const probe = document.createElement('div');
+  const out = [];
+  let length = 0;
+  for (const section of d.sections) {
+    probe.innerHTML = section.html;
+    for (const block of probe.children) {
+      if (/^H[1-6]$/.test(block.tagName)) continue;
+      const text = block.textContent.replace(/\s+/g, ' ').trim();
+      if (!text) continue;
+      out.push(text);
+      length += text.length;
+      if (length > 240) return out.join(' ');
+    }
+  }
+  return out.join(' ');
+}
+
+function sheetCard(d, { current = false } = {}) {
+  const el = document.createElement('div');
+  el.className = 'sheet-card';
+  el.tabIndex = 0;
+  el.style.setProperty('--tilt', `${tiltOf(d.id)}deg`);
+  if (current) el.style.setProperty('--tilt', '0deg');
+
+  const title = document.createElement('h2');
+  title.className = 'sheet-title';
+  title.textContent = d.title || 'Untitled';
+
+  const peek = document.createElement('p');
+  peek.className = 'sheet-peek';
+  const words = peekAt(d);
+  if (words) peek.textContent = words;
+  else { peek.classList.add('is-empty'); peek.textContent = 'Nothing written yet.'; }
+
+  const foot = document.createElement('div');
+  foot.className = 'sheet-foot';
+  const n = d.words || 0;
+  foot.innerHTML = '<span></span><span class="dot">·</span><span></span>';
+  foot.children[0].textContent = `${n.toLocaleString()} word${n === 1 ? '' : 's'}`;
+  foot.children[2].textContent = Notes.relativeTime(d.updatedAt);
+
+  const menu = document.createElement('div');
+  menu.className = 'sheet-menu';
+
+  const move = document.createElement('select');
+  move.title = 'Where this piece has got to';
+  for (const st of Doc.STATUSES) {
+    const o = document.createElement('option');
+    o.value = st.id; o.textContent = st.label;
+    move.appendChild(o);
+  }
+  move.value = d.status;
+  move.addEventListener('click', e => e.stopPropagation());
+  move.addEventListener('change', async e => {
+    e.stopPropagation();
+    await setStatus(d, move.value);
+  });
+
+  const del = document.createElement('button');
+  del.className = 'del';
+  del.textContent = '✕';
+  del.title = 'Delete this document';
+  del.addEventListener('click', async e => {
+    e.stopPropagation();
+    await removeDocument(d);
+  });
+
+  menu.append(move, del);
+  el.append(menu, title, peek, foot);
+
+  const open = () => openDocument(d.id);
+  el.addEventListener('click', open);
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+  });
+  return el;
+}
+
+async function paintDesk() {
+  const all = await Doc.listDocuments();
+  const host = $('#piles');
+  host.textContent = '';
+
+  const n = all.length;
+  $('#desk-sub').textContent = n === 0
+    ? 'Nothing on the desk yet.'
+    : `${n} document${n === 1 ? '' : 's'}, most recent first.`;
+  $('#desk-close').hidden = n === 0;
+
+  for (const status of Doc.STATUSES) {
+    const mine = all.filter(d => d.status === status.id);
+    // Empty piles are not drawn. Five labelled trays with nothing in four of
+    // them is a filing system telling you off.
+    if (!mine.length) continue;
+
+    const pile = document.createElement('section');
+    pile.className = 'pile';
+    const label = document.createElement('h2');
+    label.className = 'pile-label';
+    label.innerHTML = '<span></span><i class="rule"></i><span class="pile-count"></span>';
+    label.children[0].textContent = status.label;
+    label.children[2].textContent = mine.length;
+    pile.appendChild(label);
+
+    const sheets = document.createElement('div');
+    sheets.className = 'pile-sheets';
+    for (const d of mine) sheets.appendChild(sheetCard(d, { current: d.id === doc.id }));
+
+    if (status.id === Doc.STATUSES[0].id) sheets.appendChild(newSheet());
+    pile.appendChild(sheets);
+    host.appendChild(pile);
+  }
+
+  if (!n) {
+    const empty = document.createElement('div');
+    empty.className = 'pile-sheets';
+    empty.appendChild(newSheet());
+    host.appendChild(empty);
+  }
+}
+
+function newSheet() {
+  const el = document.createElement('div');
+  el.className = 'sheet-card is-new';
+  el.tabIndex = 0;
+  el.innerHTML = '<span>Start something new</span>';
+  const make = () => makeDocument();
+  el.addEventListener('click', make);
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); make(); }
+  });
+  return el;
+}
+
+function showDesk() {
+  editor.harvest();
+  save({ now: true });
+  document.body.classList.add('is-desk');
+  $('#desk').hidden = false;
+  paintDesk();
+}
+
+function hideDesk() {
+  document.body.classList.remove('is-desk');
+  $('#desk').hidden = true;
+}
+
+/** Put the open document away and take another one out. */
+async function openDocument(id) {
+  if (id === doc.id) { hideDesk(); return; }
+  editor.harvest();
+  save({ now: true });
+  const next = await Doc.readDocument(id);
+  if (!next) return toast('That document could not be found.', true);
+  Doc.setCurrentId(id);
+  adopt(next);
+  reload();
+  hideDesk();
+  await loadAllFonts();
+  clearMetricCache();
+  repaginate();
+}
+
+async function makeDocument() {
+  editor.harvest();
+  save({ now: true });
+  const fresh = Doc.newDocument();
+  await Doc.writeDocument(fresh);
+  Doc.setCurrentId(fresh.id);
+  adopt(fresh);
+  reload();
+  hideDesk();
+  switchView('draft');
+  $('#doc-title').focus();
+  $('#doc-title').select();
+}
+
+async function setStatus(d, status) {
+  if (d.id === doc.id) {
+    doc.status = status;
+    $('#doc-status').value = status;
+    save({ now: true });
+  } else {
+    const target = await Doc.readDocument(d.id);
+    if (!target) return;
+    target.status = status;
+    await Doc.writeDocument(target);
+  }
+  paintDesk();
+}
+
+async function removeDocument(d) {
+  const n = d.words || 0;
+  if (!await ask({
+    title: `Delete “${d.title || 'Untitled'}”?`,
+    body: `${n.toLocaleString()} word${n === 1 ? '' : 's'} and every picture in ` +
+          'it go with it. There is no undo, and nothing is kept anywhere else.',
+    yes: 'Delete it', danger: true,
+  })) return;
+
+  await Doc.deleteDocument(d.id);
+
+  if (d.id === doc.id) {
+    // The one that was open. Take out whichever is nearest to hand, or a
+    // fresh sheet if the desk is now bare.
+    const rest = await Doc.listDocuments();
+    const next = rest[0] || Doc.newDocument();
+    if (!rest.length) await Doc.writeDocument(next);
+    Doc.setCurrentId(next.id);
+    adopt(next);
+    reload();
+  }
+  paintDesk();
+  toast('Deleted.');
+}
+
+function buildStatusPicker() {
+  const sel = $('#doc-status');
+  for (const st of Doc.STATUSES) {
+    const o = document.createElement('option');
+    o.value = st.id; o.textContent = st.label;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => {
+    doc.status = sel.value;
+    save({ now: true });
+  });
+}
+
 let toastTimer = null;
 function toast(msg, isError = false) {
   const el = $('#toast');
@@ -1790,6 +2051,14 @@ function toast(msg, isError = false) {
 async function boot() {
   installFontFaces();
 
+  // The library first: everything below is built around whichever document
+  // comes out of it, and a shared link overrides it a moment later.
+  try {
+    adopt(await Doc.openCurrent());
+  } catch (err) {
+    console.warn('could not open the library; starting on a fresh sheet', err);
+  }
+
   watchHash();
   const took = await handleIncoming();
 
@@ -1797,6 +2066,7 @@ async function boot() {
   layoutPaper();
 
   $('#doc-title').value = doc.title;
+  $('#doc-status').value = doc.status;
   $('#doc-title').addEventListener('input', e => {
     doc.title = e.target.value;
     document.title = `${e.target.value || 'Untitled'} — Writing Desk`;
@@ -1816,8 +2086,16 @@ async function boot() {
   bindExportMode();
   bindCommentBar();
   bindDraft();
+  buildStatusPicker();
   paintNotesToggle();
   installMarkdownInput(editor);
+
+  $('#to-desk').addEventListener('click', showDesk);
+  $('#desk-close').addEventListener('click', hideDesk);
+  $('#desk-new').addEventListener('click', makeDocument);
+  addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('#desk').hidden) hideDesk();
+  });
 
   $('#who').value = Notes.whoAmI();
   $('#who').addEventListener('input', e => Notes.setWhoAmI(e.target.value.trim()));
@@ -1896,7 +2174,7 @@ async function boot() {
   window.addEventListener('beforeunload', persist);
 
   // A hook for poking at the internals from the console.
-  window.desk = { doc, editor, draft, Doc, Notes, Share,
+  window.desk = { doc, editor, draft, Doc, Notes, Share, paintDesk, showDesk,
                   get offsets() { return offsets; }, repaginate, importMarkdownText };
 }
 

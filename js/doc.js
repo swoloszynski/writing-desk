@@ -29,6 +29,27 @@ export const PAPER = {
 /** The stages, for validating a remembered one. */
 export const STAGES = new Set(['draft', 'edit', 'comment', 'format', 'save']);
 
+/**
+ * Where a piece has got to.
+ *
+ * Not the same list as the stages, and deliberately so. A stage is what you
+ * are doing this minute; a status is what the piece is waiting for, which is
+ * a thing you decide rather than something the application can work out. The
+ * one that has no stage behind it is the important one: a draft that is
+ * resting is doing something, and a desk that cannot say so pretends that
+ * everything not being worked on has been abandoned.
+ */
+export const STATUSES = [
+  { id: 'drafting',   label: 'Drafting' },
+  { id: 'editing',    label: 'Editing' },
+  { id: 'mellowing',  label: 'Letting it mellow' },
+  { id: 'formatting', label: 'Formatting' },
+  { id: 'sharing',    label: 'Done & sharing' },
+];
+const STATUS_IDS = new Set(STATUSES.map(s => s.id));
+export const statusLabel = id =>
+  STATUSES.find(s => s.id === id)?.label || STATUSES[0].label;
+
 export const PAPER_KEYS = Object.keys(PAPER);
 export const paperOf = settings => PAPER[settings.paper] || PAPER.letter;
 export const isFolded = settings => paperOf(settings).fold;
@@ -88,6 +109,10 @@ export function defaultDraft() {
 export function defaultDoc() {
   return {
     version: 1,
+    id: uid('d'),
+    status: 'drafting',
+    updatedAt: new Date().toISOString(),
+    words: 0,
     title: 'Untitled',
     author: '',
     settings: defaultSettings(),
@@ -178,6 +203,10 @@ export function normalizeComment(c) {
 /** Take a plain object apart into a document, filling in anything missing. */
 export function adoptShape(saved) {
   const doc = defaultDoc();
+  doc.id = typeof saved.id === 'string' && saved.id ? saved.id : doc.id;
+  doc.status = STATUS_IDS.has(saved.status) ? saved.status : doc.status;
+  doc.updatedAt = saved.updatedAt || doc.updatedAt;
+  doc.words = Number.isFinite(saved.words) ? saved.words : 0;
   doc.title = saved.title ?? doc.title;
   doc.author = saved.author ?? doc.author;
   doc.settings = merge(defaultSettings(), saved.settings);
@@ -191,14 +220,126 @@ export function adoptShape(saved) {
   return doc;
 }
 
-export function load() {
+/** Words in a document, counted off its own markup. Stored so the desk can
+ *  show a count without parsing every document it lists. */
+export function wordsIn(doc) {
+  const probe = document.createElement('div');
+  let n = 0;
+  for (const section of doc.sections) {
+    probe.innerHTML = section.html;
+    n += (probe.textContent.match(/\S+/g) || []).length;
+  }
+  return n;
+}
+
+// ---------------------------------------------------------------------------
+// The library
+//
+// Documents live in IndexedDB, one record each. They used to be a single
+// localStorage key, which was the right shape for one document and the wrong
+// one for a shelf of them: the whole origin gets about five megabytes, every
+// save re-serialises the lot, and there is nowhere to put a second.
+//
+// Only the id of the open document stays in localStorage, because it is the
+// one thing that has to be known before anything can be read.
+// ---------------------------------------------------------------------------
+
+const CURRENT_KEY = 'writing-desk/current';
+
+export function currentId() {
+  try { return localStorage.getItem(CURRENT_KEY); } catch { return null; }
+}
+export function setCurrentId(id) {
+  try { localStorage.setItem(CURRENT_KEY, id); } catch {}
+}
+
+/** Strip the parts that are derived, and stamp the ones that are not. */
+function forStorage(doc) {
+  return { ...doc, updatedAt: new Date().toISOString(), words: wordsIn(doc) };
+}
+
+export async function listDocuments() {
+  const all = await tx('documents', 'readonly', store => store.getAll());
+  return (all || [])
+    .map(adoptShape)
+    .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+}
+
+export async function readDocument(id) {
+  const raw = await tx('documents', 'readonly', store => store.get(id));
+  return raw ? adoptShape(raw) : null;
+}
+
+export async function writeDocument(doc) {
+  const record = forStorage(doc);
+  doc.updatedAt = record.updatedAt;
+  doc.words = record.words;
+  await tx('documents', 'readwrite', store => store.put(record, record.id));
+  return record;
+}
+
+/** A document and everything filed under it. There is no undo. */
+export async function deleteDocument(id) {
+  await tx('documents', 'readwrite', store => store.delete(id));
+  for (const rec of await allImages()) {
+    if (rec.docId === id) await deleteImage(rec.id);
+  }
+}
+
+export function newDocument({ title = 'Untitled' } = {}) {
+  const doc = defaultDoc();
+  doc.title = title;
+  doc.sections = [{ id: uid('s'), name: 'Opening', startsNewPage: false,
+                    html: '<p><br></p>' }];
+  doc.sampleIntact = false;
+  return doc;
+}
+
+/**
+ * Open the document that was open last, or make the first one.
+ *
+ * Also the moment a single-document install becomes a library: whatever was
+ * in the old localStorage key is written into the shelf and the key is
+ * renamed rather than deleted, so a migration that goes wrong is recoverable
+ * by hand instead of being somebody's writing.
+ */
+export async function openCurrent() {
+  await migrate();
+
+  const id = currentId();
+  if (id) {
+    const found = await readDocument(id);
+    if (found) return found;
+  }
+
+  const all = await listDocuments();
+  if (all.length) { setCurrentId(all[0].id); return all[0]; }
+
+  const first = defaultDoc();
+  await writeDocument(first);
+  setCurrentId(first.id);
+  return first;
+}
+
+const LEGACY_KEY = 'writing-desk/doc/v1';
+
+async function migrate() {
+  let raw = null;
+  try { raw = localStorage.getItem(LEGACY_KEY); } catch { return; }
+  if (!raw) return;
+
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return defaultDoc();
-    return adoptShape(JSON.parse(raw));
+    const doc = adoptShape(JSON.parse(raw));
+    await writeDocument(doc);
+    setCurrentId(doc.id);
+    // Every picture in the store belonged to the one document there was.
+    for (const rec of await allImages()) {
+      if (!rec.docId) await putImage(rec.id, { ...rec.value, docId: doc.id });
+    }
+    localStorage.setItem(`${LEGACY_KEY}.migrated`, raw);
+    localStorage.removeItem(LEGACY_KEY);
   } catch (err) {
-    console.warn('could not read the saved document; starting fresh', err);
-    return defaultDoc();
+    console.warn('could not move the old document into the library', err);
   }
 }
 
@@ -206,17 +347,9 @@ let saveTimer = null;
 export function save(doc, { now = false } = {}) {
   clearTimeout(saveTimer);
   const write = () => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(doc));
-    } catch (err) {
-      console.warn('could not save', err);
-    }
+    writeDocument(doc).catch(err => console.warn('could not save', err));
   };
   if (now) write(); else saveTimer = setTimeout(write, 400);
-}
-
-export function clearSaved() {
-  localStorage.removeItem(KEY);
 }
 
 /** Page box in CSS pixels, and the content box inside the margins. */
@@ -270,17 +403,22 @@ export function folioBaseline(settings, m) {
 // of base64 before it can show you a word.
 // ---------------------------------------------------------------------------
 
+// The name still says images because that is what any picture already on this
+// machine is filed under. It holds the documents too now. Renaming a database
+// somebody's work is already in would strand the work; the cost of a slightly
+// wrong name is that somebody reads this comment.
 const DB_NAME = 'writing-desk-images';
+const DB_VERSION = 2;
 let dbPromise = null;
 
 function db() {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = () => {
-        if (!req.result.objectStoreNames.contains('images')) {
-          req.result.createObjectStore('images');
-        }
+        const d = req.result;
+        if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+        if (!d.objectStoreNames.contains('documents')) d.createObjectStore('documents');
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -289,19 +427,28 @@ function db() {
   return dbPromise;
 }
 
-function tx(mode, fn) {
+function tx(store, mode, fn) {
   return db().then(d => new Promise((resolve, reject) => {
-    const t = d.transaction('images', mode);
-    const req = fn(t.objectStore('images'));
+    const t = d.transaction(store, mode);
+    const req = fn(t.objectStore(store));
     t.oncomplete = () => resolve(req ? req.result : undefined);
     t.onerror = () => reject(t.error);
   }));
 }
 
-export async function putImage(id, record) { return tx('readwrite', s => s.put(record, id)); }
-export async function getImage(id)         { return tx('readonly',  s => s.get(id)); }
-export async function allImageIds()        { return tx('readonly',  s => s.getAllKeys()); }
-export async function deleteImage(id)      { return tx('readwrite', s => s.delete(id)); }
+export async function putImage(id, record) { return tx('images', 'readwrite', s => s.put(record, id)); }
+export async function getImage(id)         { return tx('images', 'readonly',  s => s.get(id)); }
+export async function allImageIds()        { return tx('images', 'readonly',  s => s.getAllKeys()); }
+export async function deleteImage(id)      { return tx('images', 'readwrite', s => s.delete(id)); }
+
+/** Every picture with its id and the document it belongs to. */
+export async function allImages() {
+  const [ids, values] = await Promise.all([
+    tx('images', 'readonly', s => s.getAllKeys()),
+    tx('images', 'readonly', s => s.getAll()),
+  ]);
+  return (ids || []).map((id, i) => ({ id, docId: values[i]?.docId || null, value: values[i] }));
+}
 
 /** Object URLs, made once per image and reused for the life of the page. */
 const urlCache = new Map();
@@ -363,10 +510,11 @@ export async function packImages(doc) {
   return images;
 }
 
-export async function unpackImages(images) {
+export async function unpackImages(images, docId = null) {
   for (const [id, rec] of Object.entries(images || {})) {
     await putImage(id, {
-      blob: await dataURLToBlob(rec.data), w: rec.w, h: rec.h, name: rec.name || '',
+      blob: await dataURLToBlob(rec.data), w: rec.w, h: rec.h,
+      name: rec.name || '', docId,
     });
   }
 }
@@ -385,17 +533,26 @@ export async function deserialize(bundle) {
   if (!bundle || !BACKUP_FORMATS.has(bundle.format) || !bundle.doc) {
     throw new Error('That does not look like a Writing Desk file.');
   }
-  await unpackImages(bundle.images);
-  return adoptShape(bundle.doc);
+  const doc = adoptShape(bundle.doc);
+  await unpackImages(bundle.images, doc.id);
+  return doc;
 }
 
-/** Drop images no block references any more. Runs after an edit settles. */
+/**
+ * Drop pictures this document no longer references. Runs after an edit
+ * settles.
+ *
+ * Scoped to the one document, which is the whole reason images carry a
+ * `docId`. Before there was a library this swept everything the open document
+ * did not use — which, with a second document on the shelf, is a function that
+ * deletes the other one's pictures every time you open this one.
+ */
 export async function collectGarbage(doc) {
   const used = referencedImages(doc);
-  const ids = await allImageIds();
-  await Promise.all(ids.filter(id => !used.has(id)).map(id => {
-    const url = urlCache.get(id);
-    if (url) { URL.revokeObjectURL(url); urlCache.delete(id); }
-    return deleteImage(id);
+  const mine = (await allImages()).filter(rec => rec.docId === doc.id);
+  await Promise.all(mine.filter(rec => !used.has(rec.id)).map(rec => {
+    const url = urlCache.get(rec.id);
+    if (url) { URL.revokeObjectURL(url); urlCache.delete(rec.id); }
+    return deleteImage(rec.id);
   }));
 }

@@ -5,6 +5,8 @@ Five stages along the top, walked left to right: **Draft**, **Edit**,
 five applications sharing a folder — and each one takes something away or
 gives something back on purpose.
 
+Behind them is **the desk**, which is where the documents live.
+
 No backend, no build step, no accounts. It is a folder of files you can open.
 
 ## Run it locally
@@ -18,6 +20,35 @@ Then open http://localhost:4175/.
 `serve.py` is `python3 -m http.server` with one addition: it tells the browser
 not to cache. Without that, an edited `.js` file keeps being served out of the
 browser cache and you debug code that is no longer running.
+
+---
+
+## The desk
+
+The name in the top left is the way back to it. Every document you have is
+lying there, as a sheet of paper showing its title and its opening lines,
+grouped into piles by where it has got to.
+
+The five piles are not the five stages, and that is deliberate. A stage is
+what you are doing this minute; a status is what the piece is waiting for,
+which is something you decide rather than something the application can work
+out by watching you.
+
+| Pile | For |
+| --- | --- |
+| Drafting | Getting it down |
+| Editing | Working on it |
+| Letting it mellow | Finished for now, deliberately left alone |
+| Formatting | Making it an object |
+| Done & sharing | Out in the world |
+
+*Letting it mellow* is the one that earns the list. A draft that is resting is
+doing something, and a shelf that cannot say so implies that everything not
+being worked on has been abandoned.
+
+Change a pile from the card on the desk, or from the control beside the title
+while you are writing. Empty piles are not drawn — five labelled trays with
+nothing in four of them is a filing system telling you off.
 
 ---
 
@@ -315,10 +346,21 @@ anything has loaded, and stays right if nothing ever does.
 
 ## Where your work lives
 
-In this browser. The text, the draft, the comments and every setting go to
-`localStorage` shortly after you stop typing; pictures go to IndexedDB,
-because a few photographs would blow the localStorage budget on their own and
-losing the writing to save a picture is the wrong trade.
+In this browser. Documents go to IndexedDB, one record each, shortly after you
+stop typing; so do pictures. Only the id of the document you had open is in
+`localStorage`, because it is the one thing that has to be known before
+anything else can be read.
+
+It used to be a single `localStorage` key, which is the right shape for one
+document and the wrong one for a shelf of them: the whole origin gets about
+five megabytes, every save re-serialises the lot, and there is nowhere to put
+a second. A document already in that key is moved across the first time this
+version runs, and the old key is renamed rather than deleted — a migration
+that goes wrong should be recoverable by hand rather than being somebody's
+writing.
+
+Pictures are filed under the document that uses them. That is what stops
+tidying up one document from deleting another one's photographs.
 
 That means clearing site data takes the lot. **Save a copy**, under Document in
 the Format rail and again under Save, writes the whole thing — pictures and

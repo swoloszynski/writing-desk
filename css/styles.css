@@ -59,7 +59,8 @@ button{ background:none; border:0; cursor:pointer; }
 .brand{
   font-weight:700; letter-spacing:.14em; text-transform:uppercase;
   font-size:12px; color:var(--accent);
-  padding-right:12px; border-right:1px solid var(--line);
+  padding:0 12px 0 0; border-right:1px solid var(--line);
+  flex:0 0 auto;
 }
 .doc-title{
   background:transparent; border:1px solid transparent; border-radius:6px;
@@ -695,3 +696,134 @@ body.is-reviewing .sec{ cursor:pointer; }
     font-size:17px; line-height:1.6; color:var(--dim);
   }
 }
+
+/* --- the desk ------------------------------------------------------------ */
+/*
+   Everywhere else in this application the chrome is dark so the paper is the
+   brightest thing on screen. The desk keeps that and takes it a step further:
+   a warm, worn surface with the grain running across it, and the documents
+   lying on it as sheets of paper. Nothing here is a row in a list.
+*/
+
+.desk{
+  position:fixed; inset:0; z-index:150; overflow-y:auto; overscroll-behavior:contain;
+  background:
+    /* the lamp */
+    radial-gradient(80% 55% at 50% -8%, rgba(255,232,196,.10), rgba(255,232,196,0) 70%),
+    /* the grain */
+    repeating-linear-gradient(96deg,
+      rgba(255,255,255,.014) 0 2px, rgba(0,0,0,.020) 2px 5px),
+    /* the wood */
+    linear-gradient(168deg, #2a2119 0%, #211a14 42%, #17120e 100%);
+}
+.desk::after{
+  content:''; position:fixed; inset:0; pointer-events:none;
+  background:radial-gradient(70% 60% at 50% 40%, rgba(0,0,0,0), rgba(0,0,0,.45));
+}
+
+.desk-sheet{ max-width:1180px; margin:0 auto; padding:56px 40px 120px; position:relative; z-index:1; }
+
+.desk-head{ display:flex; align-items:flex-end; gap:24px; margin-bottom:44px; }
+.desk-head h1{
+  margin:0; font-size:15px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:#e8a06a;
+}
+.desk-sub{ margin:7px 0 0; font-size:13.5px; color:#a2937f; }
+.desk-actions{ margin-left:auto; display:flex; gap:9px; flex:0 0 auto; }
+.desk .btn{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); }
+.desk .btn:hover{ border-color:rgba(255,255,255,.28); }
+.desk .btn.primary{ background:var(--accent); border-color:var(--accent); }
+
+/* --- piles --------------------------------------------------------------- */
+
+.pile{ margin-bottom:40px; }
+.pile-label{
+  display:flex; align-items:center; gap:11px; margin:0 0 15px;
+  font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+  color:#8d7f6d;
+}
+/* A rule that runs off toward the edge of the desk, like a tray divider,
+   with the count parked at the far end of it. */
+.pile-label .rule{
+  flex:1; height:1px;
+  background:linear-gradient(90deg, rgba(255,255,255,.11), rgba(255,255,255,.03));
+}
+.pile-count{ color:#6d6153; font-weight:600; letter-spacing:.04em; }
+
+.pile-sheets{ display:flex; flex-wrap:wrap; gap:22px; }
+
+/* --- a document, as a sheet of paper ------------------------------------- */
+
+.sheet-card{
+  position:relative; width:212px; min-height:258px;
+  display:flex; flex-direction:column;
+  background:#fbfaf7; color:#17140f; border-radius:2px;
+  padding:20px 19px 14px; cursor:pointer; text-align:left;
+  box-shadow:
+    0 1px 1px rgba(0,0,0,.32),
+    0 12px 26px rgba(0,0,0,.40);
+  transition:transform .16s ease, box-shadow .16s ease;
+}
+/* Paper does not land square. The angle is derived from the document's id, so
+   a given sheet always lies the same way round. */
+.sheet-card{ transform:rotate(var(--tilt, 0deg)); }
+.sheet-card:hover{
+  transform:rotate(0deg) translateY(-4px);
+  box-shadow:0 2px 2px rgba(0,0,0,.3), 0 20px 40px rgba(0,0,0,.5);
+}
+.sheet-card:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+
+.sheet-title{
+  margin:0 0 9px; font-family:'Space Grotesk', system-ui, sans-serif;
+  font-size:16px; line-height:1.25; font-weight:700; color:#17140f;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.sheet-peek{
+  flex:1; margin:0; font-family:'EB Garamond', Georgia, serif;
+  font-size:12.5px; line-height:1.5; color:#4c463c;
+  display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden;
+}
+.sheet-peek.is-empty{ font-style:italic; color:#9a9184; }
+
+.sheet-foot{
+  margin-top:12px; padding-top:9px; border-top:1px solid rgba(0,0,0,.09);
+  display:flex; align-items:center; gap:8px;
+  font-size:11px; color:#7d7466; font-variant-numeric:tabular-nums;
+}
+.sheet-foot .dot{ opacity:.5; }
+
+.sheet-menu{
+  position:absolute; top:8px; right:8px; display:flex; gap:2px;
+  opacity:0; transition:opacity .14s;
+}
+.sheet-card:hover .sheet-menu, .sheet-card:focus-within .sheet-menu{ opacity:1; }
+.sheet-menu button, .sheet-menu select{
+  border:0; background:rgba(0,0,0,.06); color:#4c463c; border-radius:5px;
+  font:500 11px/1 var(--ui); padding:5px 7px; cursor:pointer;
+}
+.sheet-menu button:hover{ background:rgba(0,0,0,.13); color:#000; }
+.sheet-menu .del:hover{ background:var(--accent); color:#fff; }
+
+/* A fresh sheet, waiting. */
+.sheet-card.is-new{
+  background:rgba(255,255,255,.035); color:#b6a894;
+  border:1px dashed rgba(255,255,255,.18); box-shadow:none;
+  align-items:center; justify-content:center; text-align:center;
+}
+.sheet-card.is-new:hover{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.38); box-shadow:none; }
+.sheet-card.is-new span{ font-size:13.5px; }
+
+.desk-empty{ color:#a2937f; font-size:14px; max-width:34em; line-height:1.6; }
+
+/* The status control in the top bar. */
+.status-pick{
+  background:transparent; border:1px solid var(--line); border-radius:6px;
+  height:30px; padding:0 6px; color:var(--dim); font-size:12.5px; max-width:160px;
+}
+.status-pick:hover{ border-color:var(--dimmer); color:var(--ink); }
+.status-pick:focus{ outline:none; border-color:var(--accent); }
+
+.brand{ font:inherit; cursor:pointer; }
+.brand:hover{ color:#ff7a55; }
+/* Nothing behind the desk should be reachable while it is open. */
+body.is-desk .app{ pointer-events:none; }

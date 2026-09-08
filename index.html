@@ -18,11 +18,29 @@
   </div>
 </div>
 
+<!-- The desk. Not a stage: it is the surface the stages happen on top of. -->
+<section class="desk" id="desk" hidden>
+  <div class="desk-sheet">
+    <header class="desk-head">
+      <div>
+        <h1>Writing Desk</h1>
+        <p class="desk-sub" id="desk-sub"></p>
+      </div>
+      <div class="desk-actions">
+        <button class="btn" id="desk-close" hidden>Back to writing</button>
+        <button class="btn primary" id="desk-new">Start something new</button>
+      </div>
+    </header>
+    <div class="piles" id="piles"></div>
+  </div>
+</section>
+
 <div class="app">
 
   <header class="topbar">
-    <div class="brand">Writing&nbsp;Desk</div>
+    <button class="brand" id="to-desk" title="All your documents">Writing&nbsp;Desk</button>
     <input class="doc-title" id="doc-title" value="Untitled" spellcheck="false" aria-label="Title">
+    <select class="status-pick" id="doc-status" aria-label="Where this piece has got to"></select>
 
     <nav class="tabs" id="tabs">
       <button data-view="draft"><span class="tnum">1</span>Draft<span class="tbadge is-quiet" id="tab-draft" hidden></span></button>

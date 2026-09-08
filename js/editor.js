@@ -282,7 +282,9 @@ export class Editor extends EventTarget {
   async insertImage(file) {
     const id = uid('img');
     const dims = await imageSize(file);
-    await putImage(id, { blob: file, w: dims.w, h: dims.h, name: file.name || '' });
+    // Filed under the document, so tidying one never reaches into another.
+    await putImage(id, { blob: file, w: dims.w, h: dims.h,
+                         name: file.name || '', docId: this.doc.id });
     const url = await imageURL(id);
     this.insertHTML(
       `<figure data-align="center" style="width:70%">` +
