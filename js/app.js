@@ -31,6 +31,10 @@ import * as Notes from './comments.js';
 import * as Share from './share.js';
 
 const $ = sel => document.querySelector(sel);
+
+/** What the browser tab says. The application first, so a row of tabs is
+ *  scannable by what they are before it is scannable by which one. */
+const pageTitle = title => `Writing Desk: ${(title || 'Untitled').trim() || 'Untitled'}`;
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 const doc = Doc.defaultDoc();
@@ -1515,7 +1519,7 @@ function adopt(next) {
 function reload() {
   $('#doc-title').value = doc.title;
   $('#doc-status').value = doc.status;
-  document.title = `${doc.title || 'Untitled'} — Writing Desk`;
+  document.title = pageTitle(doc.title);
   applyFlowCSS(doc.settings);
   clearMetricCache();
   layoutPaper();
@@ -2136,10 +2140,10 @@ async function boot() {
   $('#doc-status').value = doc.status;
   $('#doc-title').addEventListener('input', e => {
     doc.title = e.target.value;
-    document.title = `${e.target.value || 'Untitled'} — Writing Desk`;
+    document.title = pageTitle(e.target.value);
     save();
   });
-  document.title = `${doc.title || 'Untitled'} — Writing Desk`;
+  document.title = pageTitle(doc.title);
 
   buildRail();
   buildFields($('#press-fields'), PRESS_SCHEMA, doc.settings, () => {
