@@ -914,8 +914,8 @@ async function exportPDF() {
   if (exporting) return;
   exporting = true;
   const status = $('#export-status');
-  const buttons = [$('#export-pdf'), $('#export-top')];
-  buttons.forEach(b => (b.disabled = true));
+  const button = $('#export-pdf');
+  button.disabled = true;
 
   const say = msg => { status.classList.remove('err'); status.textContent = msg; };
 
@@ -973,7 +973,7 @@ async function exportPDF() {
     toast(`Export failed: ${err.message}`, true);
   } finally {
     exporting = false;
-    buttons.forEach(b => (b.disabled = false));
+    button.disabled = false;
   }
 }
 
@@ -1782,7 +1782,6 @@ async function boot() {
   $('#format-zoom').addEventListener('input', () => view === 'format' && paintPageGrid());
   $('#save-zoom').addEventListener('input', () => view === 'save' && paintSave());
   $('#export-pdf').addEventListener('click', exportPDF);
-  $('#export-top').addEventListener('click', () => { switchView('save'); exportPDF(); });
   $('#show-resolved').addEventListener('change', paintThreads);
 
   $$('#comment-filter button').forEach(b =>

@@ -447,7 +447,6 @@ body.is-reviewing .tabs button[data-view="format"],
 body.is-reviewing .tabs button[data-view="save"],
 body.is-reviewing .tabs button[data-view="send"],
 body.is-reviewing #edit-toolbar,
-body.is-reviewing #export-top,
 body.is-reviewing .rail.left .sec-del,
 body.is-reviewing .sec-meta{ display:none; }
 body.is-reviewing .doc-title{ pointer-events:none; }
