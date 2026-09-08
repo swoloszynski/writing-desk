@@ -403,6 +403,24 @@ iCloud Drive or Dropbox and it is off the machine as well, with nothing else
 to set up. Deleting a document deletes its file too, which the confirmation
 says before you agree to it.
 
+The folder is read as well as written. Connecting to one takes in whatever is
+already there, so pointing a second browser — or a second machine, at a folder
+in iCloud Drive — at the same place brings the shelf with it. It looks again
+when the window comes back to the front and when you open the desk.
+
+What it will not do is merge. Each document carries the version this desk last
+wrote to its file, which is enough to tell *the folder has moved on* from *I
+have moved on* from *we have both moved*. The first two are applied without
+asking. The third is a fork: two documents that used to be one, and no amount
+of comparing clocks turns them back into one. Both are kept, neither is
+touched, and the strip on the desk names the ones in that state. Resolving it
+is by hand, in the folder.
+
+Deleting a document deletes its file. Deleting a *file* does not delete the
+document — the next look simply writes it back. A folder whose files have not
+finished coming down from iCloud looks exactly like a folder somebody emptied,
+and a rule that deleted to match would clear the shelf on a slow morning.
+
 The picker is Chromium-only for now; Safari and Firefox have not shipped one.
 There, and any time you want a copy by hand, **Save a copy** under Save writes
 the same `.json` — pictures and comments included.

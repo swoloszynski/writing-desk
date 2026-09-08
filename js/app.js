@@ -1598,7 +1598,68 @@ function paintFolder() {
     label.textContent = `Saved to this folder: ${name}`;
     note.textContent =
       'Your work is saved every few seconds to your local file system.';
+    // A fork is not an error and is not tidied away silently. Both versions
+    // still exist; the reader is the only one who can say which is the one
+    // they meant.
+    if (folderConflicts.length) {
+      const which = folderConflicts.map(c => `“${c.title}”`).join(', ');
+      note.textContent +=
+        ` ${which} ${folderConflicts.length === 1 ? 'was' : 'were'} also ` +
+        'edited somewhere else since this desk last wrote. Both versions have ' +
+        'been kept: this one, and the file in the folder.';
+    }
   }
+}
+
+/**
+ * Read the folder and act on what is in it.
+ *
+ * Called when a folder is connected, when the window comes back to the front,
+ * and when the desk is opened — the three moments at which the machine you
+ * were working on yesterday might have left something new in there.
+ *
+ * Not while reading somebody else's shared draft. That mode exists to leave
+ * no trace on the reader's storage, and a sync that quietly filed a borrowed
+ * document onto their shelf would be exactly the trace it promises not to
+ * leave.
+ */
+let lastSync = 0;
+let folderConflicts = [];
+
+async function syncFolder({ announce = true, throttle = false } = {}) {
+  if (reviewing || Folder.status().state !== 'ready') return null;
+  if (throttle && Date.now() - lastSync < 15000) return null;
+  lastSync = Date.now();
+
+  // Compare against what is on screen, not what was last written.
+  editor.harvest();
+
+  const out = await Folder.scan({ current: doc });
+  if (!out) return null;
+  folderConflicts = out.conflicts;
+
+  // The open document may be one of the ones that moved.
+  if (out.touched.has(doc.id)) {
+    const fresh = await Doc.readDocument(doc.id);
+    if (fresh) {
+      adopt(fresh);
+      reload();
+      await loadAllFonts();
+      clearMetricCache();
+      repaginate();
+    }
+  }
+  if (out.added || out.pulled) await paintDesk();
+  paintFolder();
+
+  if (announce) {
+    const said = [
+      out.added  ? `Brought in ${out.added} document${out.added === 1 ? '' : 's'}.` : '',
+      out.pulled ? `Updated ${out.pulled} from the folder.` : '',
+    ].filter(Boolean).join(' ');
+    if (said) toast(said);
+  }
+  return out;
 }
 
 async function folderButton() {
@@ -1608,11 +1669,19 @@ async function folderButton() {
     paintFolder();
     if (state !== 'ready') return toast('That folder is not writable yet.', true);
 
-    // Everything, not just what is open — see writeAll in folder.js.
+    // Read before writing. A folder that has been used from another browser
+    // already has documents in it, and writing over them without looking
+    // would be the worst possible first act.
+    const found = await syncFolder({ announce: false });
+
+    // Then everything on this desk that is not out there yet.
     const n = await Folder.writeAll(doc);
-    toast(n
-      ? `Saving into “${name}”. ${n} document${n === 1 ? '' : 's'} written.`
-      : `Chose “${name}”, but nothing could be written to it.`, !n);
+    const brought = found?.added || 0;
+    toast([
+      `Saving into “${name}”.`,
+      brought ? `Brought in ${brought} document${brought === 1 ? '' : 's'}.` : '',
+      n ? `${n} written out.` : '',
+    ].filter(Boolean).join(' '));
   } catch (err) {
     // Closing the picker is not an error and must not be reported as one.
     if (err?.name !== 'AbortError') {
@@ -2119,6 +2188,7 @@ function showDesk() {
   document.body.classList.add('is-desk');
   $('#desk').hidden = false;
   paintDesk();
+  syncFolder({ throttle: true }).catch(() => {});
 }
 
 function hideDesk() {
@@ -2394,6 +2464,8 @@ async function boot() {
   };
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') persist();
+    // Coming back is the moment the other machine's work has arrived.
+    else syncFolder({ throttle: true }).catch(() => {});
   });
   window.addEventListener('pagehide', persist);
   window.addEventListener('beforeunload', persist);
@@ -2408,7 +2480,10 @@ async function boot() {
 
   // Never prompts: it only reports whether the folder picked last time can
   // still be written to. Asking again needs a click, which the Save rail has.
-  Folder.resume().then(paintFolder).catch(() => {});
+  Folder.resume().then(async ({ state }) => {
+    paintFolder();
+    if (state === 'ready') await syncFolder({ announce: false });
+  }).catch(() => {});
 
   booted = true;
 

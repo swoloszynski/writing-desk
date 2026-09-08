@@ -318,9 +318,23 @@ export function requestPersistence() {
   return persistence;
 }
 
-/** Strip the parts that are derived, and stamp the ones that are not. */
-function forStorage(doc) {
-  return { ...doc, updatedAt: new Date().toISOString(), words: wordsIn(doc) };
+/**
+ * Strip the parts that are derived, and stamp the ones that are not.
+ *
+ * `restamp` is off for a document arriving from the folder. Its `updatedAt`
+ * belongs to the machine that wrote it, and taking that away is not a
+ * cosmetic loss: it is the only thing by which two desks sharing a folder can
+ * tell whose copy is the later one. Re-stamping on arrival would make every
+ * document this desk received look newer than the one it came from, so the
+ * other desk would take it back, restamp it in turn, and the two would pass
+ * the same document between them for as long as both were open.
+ */
+function forStorage(doc, { restamp = true } = {}) {
+  return {
+    ...doc,
+    updatedAt: restamp || !doc.updatedAt ? new Date().toISOString() : doc.updatedAt,
+    words: wordsIn(doc),
+  };
 }
 
 export async function listDocuments() {
@@ -335,8 +349,8 @@ export async function readDocument(id) {
   return raw ? adoptShape(raw) : null;
 }
 
-export async function writeDocument(doc) {
-  const record = forStorage(doc);
+export async function writeDocument(doc, opts) {
+  const record = forStorage(doc, opts);
   doc.updatedAt = record.updatedAt;
   doc.words = record.words;
   await tx('documents', 'readwrite', store => store.put(record, record.id));

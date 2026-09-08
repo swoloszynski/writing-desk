@@ -12,6 +12,18 @@
 // of this application. If the drawer is emptied tomorrow the folder is still
 // there. That is the entire idea.
 //
+// It reads as well as writes. A folder inside iCloud Drive or Dropbox is the
+// same folder on two machines, so the files in it are not always ones this
+// browser put there: they arrive from the desk you were sitting at yesterday.
+// Connecting to a folder therefore means taking in what is already in it, and
+// noticing later when something in it changes underneath us. See scan().
+//
+// What this deliberately is not is a merge. Two devices that edit the same
+// document while apart have produced two documents, and no amount of
+// timestamp arithmetic turns them back into one. When that happens both are
+// kept and the reader is told. Losing the quieter of the two silently is the
+// one outcome worth writing this much code to avoid.
+//
 // Chromium desktop only, because it is the only engine that implements the
 // directory picker. Everywhere else this reports itself unsupported and the
 // interface offers the .json download instead, which is the same file arrived
@@ -21,9 +33,17 @@ import * as Doc from './doc.js';
 
 const HANDLE_KEY = 'folder';
 
-/** The picked directory, and the filename last written for each document. */
+/**
+ * The picked directory, and what we last wrote for each document.
+ *
+ * A mark is `{ name, updatedAt }`: the file a document lives in, and the
+ * version of the document that file was last known to hold. The second half
+ * is what makes it possible to tell "the folder is ahead of me" from "I am
+ * ahead of the folder" from "we have both moved", which is the difference
+ * between syncing and losing an afternoon.
+ */
 let dir = null;
-let names = {};
+let marks = {};
 let loaded = false;
 
 /** 'unsupported' | 'off' | 'ready' | 'blocked' — see status(). */
@@ -60,7 +80,13 @@ export async function resume() {
     const saved = await Doc.getHandle(HANDLE_KEY);
     if (!saved?.dir) return status();
     dir = saved.dir;
-    names = saved.names || {};
+    // Before there was reading there was only a filename per document. An
+    // upgraded install has those, and a mark with no version behind it is
+    // treated as one we cannot vouch for, which is exactly what it is.
+    marks = {};
+    for (const [id, was] of Object.entries(saved.names || saved.marks || {})) {
+      marks[id] = typeof was === 'string' ? { name: was, updatedAt: null } : was;
+    }
     state = await dir.queryPermission({ mode: 'readwrite' }) === 'granted'
       ? 'ready' : 'blocked';
   } catch (err) {
@@ -83,7 +109,7 @@ export async function choose() {
     startIn: 'documents',
   });
   dir = picked;
-  names = {};
+  marks = {};
   state = 'ready';
   lastError = '';
   await remember();
@@ -100,7 +126,7 @@ export async function reconnect() {
 
 export async function forget() {
   dir = null;
-  names = {};
+  marks = {};
   state = 'off';
   lastError = '';
   try { await Doc.deleteHandle(HANDLE_KEY); } catch {}
@@ -108,7 +134,7 @@ export async function forget() {
 }
 
 /** The file a document is being written to, if it has one yet. */
-export const fileNameFor = docId => names[docId] || null;
+export const fileNameFor = docId => marks[docId]?.name || null;
 
 /**
  * Delete the file a document was being written to.
@@ -120,7 +146,7 @@ export const fileNameFor = docId => names[docId] || null;
  * file belonging to a document that no longer exists.
  */
 export async function remove(docId) {
-  const name = names[docId];
+  const name = marks[docId]?.name;
   if (!name) return false;
 
   let gone = false;
@@ -128,13 +154,13 @@ export async function remove(docId) {
     try { await dir.removeEntry(name); gone = true; }
     catch (err) { console.warn('could not remove the file', err); }
   }
-  delete names[docId];
+  delete marks[docId];
   await remember();
   return gone;
 }
 
 async function remember() {
-  try { await Doc.putHandle(HANDLE_KEY, { dir, names }); } catch {}
+  try { await Doc.putHandle(HANDLE_KEY, { dir, marks }); } catch {}
 }
 
 const fileFor = doc => `${
@@ -218,11 +244,14 @@ async function writeOne(doc) {
 
     // A retitled document is a differently named file, and leaving the old one
     // behind would quietly turn one document into two.
-    const had = names[doc.id];
+    const had = marks[doc.id]?.name;
     if (had && had !== name) {
       try { await dir.removeEntry(had); } catch {}
     }
-    if (had !== name) { names[doc.id] = name; await remember(); }
+    // The version that is now on disk. Every later scan reads this to decide
+    // whether a file has moved on without us.
+    marks[doc.id] = { name, updatedAt: doc.updatedAt || null };
+    await remember();
 
     lastError = '';
     return true;
@@ -232,5 +261,130 @@ async function writeOne(doc) {
     lastError = err?.message || String(err);
     if (err?.name === 'NotAllowedError') state = 'blocked';
     return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reading the folder
+//
+// A folder in iCloud Drive or Dropbox is the same folder on two machines, so
+// what is in it is not only what this browser put there. Connecting to one has
+// to mean taking in what is already there, and looking again afterwards.
+// ---------------------------------------------------------------------------
+
+const SUFFIX = '.writing-desk.json';
+
+async function readBundle(handle) {
+  try {
+    const bundle = JSON.parse(await (await handle.getFile()).text());
+    // Anything else in the folder is somebody else's business.
+    return bundle?.doc?.id ? bundle : null;
+  } catch (err) {
+    console.warn(`could not read ${handle.name}`, err);
+    return null;
+  }
+}
+
+/**
+ * Bring the folder and the shelf into line.
+ *
+ * For each file, three timestamps decide what happens: the version in the
+ * file, the version on this desk, and the version this desk last wrote to
+ * that file. The third is the one that matters. Without it you can only ask
+ * which copy is newer, and answering that question alone is how sync tools
+ * quietly delete work: the older copy is not always the one with less in it.
+ *
+ *   nothing here with that id   the file is a document this desk has not seen
+ *   same version both sides     nothing to do
+ *   only the file has moved     take it
+ *   only this desk has moved    write it out
+ *   both have moved             leave both alone and say so
+ *
+ * The last case is a genuine fork and is not resolved here. Two people, or
+ * one person on two machines, have written two different documents that used
+ * to be one, and picking a winner by clock is a coin toss with somebody's
+ * afternoon. Both files stay, both desks keep what they have, and the strip
+ * on the desk says which documents are in that state.
+ */
+export async function scan({ current = null } = {}) {
+  if (state !== 'ready' || !dir) return null;
+  if (writing) return null;
+  writing = true;
+
+  const out = { added: 0, pulled: 0, pushed: 0, conflicts: [], touched: new Set() };
+  try {
+    const local = new Map((await Doc.listDocuments()).map(d => [d.id, d]));
+    // The open document is up to four seconds ahead of its own record.
+    if (current) local.set(current.id, current);
+
+    const seen = new Set();
+
+    for await (const handle of dir.values()) {
+      if (handle.kind !== 'file' || !handle.name.endsWith(SUFFIX)) continue;
+
+      const bundle = await readBundle(handle);
+      if (!bundle) continue;
+
+      const id = bundle.doc.id;
+      seen.add(id);
+      const fileAt = bundle.doc.updatedAt || null;
+      const mine = local.get(id);
+      const markAt = marks[id]?.updatedAt ?? null;
+
+      // Another desk may have retitled it, which renames the file. Believe
+      // the folder about where the document lives before writing anything,
+      // or the next write lands beside it instead of on it.
+      if (mine) marks[id] = { name: handle.name, updatedAt: markAt };
+
+      if (!mine) {
+        const doc = await Doc.deserialize(bundle);
+        await Doc.writeDocument(doc, { restamp: false });
+        marks[id] = { name: handle.name, updatedAt: doc.updatedAt || fileAt };
+        out.added++;
+        out.touched.add(id);
+        continue;
+      }
+
+      if (fileAt && mine.updatedAt && fileAt === mine.updatedAt) continue;
+
+      const theyMoved = fileAt !== markAt;
+      const weMoved = (mine.updatedAt || null) !== markAt;
+
+      if (theyMoved && weMoved) {
+        out.conflicts.push({ id, title: mine.title || 'Untitled', file: handle.name });
+      } else if (theyMoved) {
+        const doc = await Doc.deserialize(bundle);
+        await Doc.writeDocument(doc, { restamp: false });
+        marks[id] = { name: handle.name, updatedAt: doc.updatedAt || fileAt };
+        out.pulled++;
+        out.touched.add(id);
+      } else if (weMoved) {
+        if (await writeOne(mine)) out.pushed++;
+      }
+    }
+
+    // Anything on the shelf the folder has no file for. Two ways to get here:
+    // a document made since the last write, and a file somebody deleted from
+    // the folder by hand or from another machine.
+    //
+    // Both are written out, which means a deletion made elsewhere does not
+    // travel — the other desk will simply be given the document back. That is
+    // the deliberate choice. A folder whose files have not finished syncing
+    // down is indistinguishable from a folder somebody emptied, and a rule
+    // that deleted to match would clear the shelf on a slow morning.
+    for (const [id, mine] of local) {
+      if (seen.has(id)) continue;
+      if (await writeOne(mine)) out.pushed++;
+    }
+
+    await remember();
+    return out;
+  } catch (err) {
+    console.warn('could not read the folder', err);
+    lastError = err?.message || String(err);
+    if (err?.name === 'NotAllowedError') state = 'blocked';
+    return out;
+  } finally {
+    writing = false;
   }
 }
