@@ -415,7 +415,6 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
   border:1px solid var(--line); background:var(--bg);
 }
 .tabs button.is-on .tnum{ border-color:var(--accent); color:var(--accent); }
-.tabs button.is-soon{ opacity:.42; }
 .tbadge{
   min-width:18px; height:18px; padding:0 5px; border-radius:9px;
   display:grid; place-items:center; background:var(--accent); color:#fff;
@@ -445,7 +444,6 @@ body.is-reviewing .owner-only,
 body.is-reviewing .tabs button[data-view="draft"],
 body.is-reviewing .tabs button[data-view="format"],
 body.is-reviewing .tabs button[data-view="save"],
-body.is-reviewing .tabs button[data-view="send"],
 body.is-reviewing #edit-toolbar,
 body.is-reviewing .rail.left .sec-del,
 body.is-reviewing .sec-meta{ display:none; }
@@ -665,12 +663,6 @@ body.is-reviewing .sec{ cursor:pointer; }
 .sheetbox .btn.primary.danger{ background:var(--accent); border-color:var(--accent); }
 .ask-body{ color:var(--dim); font-size:14px; line-height:1.55; }
 #ask-input{ margin-top:4px; }
-
-/* --- the stage that is not built yet ------------------------------------- */
-
-.soon{ max-width:560px; color:var(--dim); font-size:14.5px; line-height:1.65; }
-.soon h2{ font-size:17px; color:var(--ink); margin:0 0 12px; }
-.soon p{ margin:0 0 12px; }
 
 /* --- narrow ------------------------------------------------------------- */
 

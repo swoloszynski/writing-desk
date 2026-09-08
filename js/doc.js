@@ -27,7 +27,7 @@ export const PAPER = {
 };
 
 /** The stages, for validating a remembered one. */
-export const STAGES = new Set(['draft', 'edit', 'comment', 'format', 'save', 'send']);
+export const STAGES = new Set(['draft', 'edit', 'comment', 'format', 'save']);
 
 export const PAPER_KEYS = Object.keys(PAPER);
 export const paperOf = settings => PAPER[settings.paper] || PAPER.letter;
