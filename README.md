@@ -1,9 +1,9 @@
 # Writing Desk
 
-Six stages along the top, walked left to right: **Draft**, **Edit**,
-**Comment**, **Format**, **Save**, **Send**. They are one document seen six
-ways, not six applications sharing a folder — and each one takes something
-away or gives something back on purpose.
+Five stages along the top, walked left to right: **Draft**, **Edit**,
+**Comment**, **Format**, **Save**. They are one document seen five ways, not
+five applications sharing a folder — and each one takes something away or
+gives something back on purpose.
 
 No backend, no build step, no accounts. It is a folder of files you can open.
 
@@ -299,19 +299,6 @@ Other formats:
   a file meant to be small and readable anywhere is the wrong trade.
 - **Everything (.json)** — the complete one. Words, pictures, comments and
   every setting. This is the only export that brings all of it back.
-
----
-
-## Send
-
-Not built. It is the one stage that cannot be done from a folder of files
-opened in a browser: posting to a blog, dropping a draft into a newsletter
-tool, pushing a page into a notes application. Every destination wants an
-account and a token, and a token in a page anyone can view is a token anyone
-can use. The stage waits until there is somewhere safe to keep one.
-
-Until then, **Export Markdown** pastes cleanly into most of those places, and
-the web page export stands on its own.
 
 ---
 
