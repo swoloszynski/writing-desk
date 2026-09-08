@@ -2123,7 +2123,28 @@ function toast(msg, isError = false) {
 async function boot() {
   installFontFaces();
 
-  // The library first: everything below is built around whichever document
+  // Whatever happens below, the interface must become visible.
+  const reveal = () => {
+    if (!document.body.classList.contains('is-booting')) return;
+    document.body.classList.remove('is-booting');
+    // Then take the screen out of the document altogether, rather than
+    // trusting its fade to finish. A tab that is hidden while this runs never
+    // completes a transition, and the half-faded result would sit over the
+    // application until something else forced a repaint.
+    setTimeout(() => $('#booting')?.remove(), 400);
+  };
+  setTimeout(reveal, 4000);
+
+  // Decided before anything is painted, from two synchronous reads. Waiting
+  // until the end meant a document appeared for half a second and was then
+  // covered over by the desk you had actually left open.
+  const startAtDesk = Doc.atDesk() && !Share.incoming();
+  if (startAtDesk) {
+    document.body.classList.add('is-desk');
+    $('#desk').hidden = false;
+  }
+
+  // The library next: everything below is built around whichever document
   // comes out of it, and a shared link overrides it a moment later.
   try {
     adopt(await Doc.openCurrent());
@@ -2224,6 +2245,19 @@ async function boot() {
   clearMetricCache();
   repaginate();
 
+  // The desk surface went up before the documents were readable; fill it in.
+  if (startAtDesk && !reviewing && !took) {
+    showDesk();
+  } else if (startAtDesk) {
+    // A link arrived instead. Take the surface down without forgetting that
+    // the desk is where you were — you will want it back after reading this.
+    document.body.classList.remove('is-desk');
+    $('#desk').hidden = true;
+  }
+
+  // Everything that was going to move has moved.
+  reveal();
+
   // Getting the last few hundred milliseconds of typing onto disk.
   //
   // `beforeunload` is the obvious hook and the least dependable one: iOS
@@ -2244,11 +2278,6 @@ async function boot() {
   window.addEventListener('beforeunload', persist);
 
   // A hook for poking at the internals from the console.
-  // Back where you were. A borrowed draft is the exception: somebody sent it
-  // to be read, and opening a cupboard of your own documents instead is not
-  // an answer to that.
-  if (Doc.atDesk() && !reviewing && !took) showDesk();
-
   window.desk = { doc, editor, draft, Doc, Notes, Share, paintDesk, showDesk,
                   get offsets() { return offsets; }, repaginate, importMarkdownText };
 }

@@ -7,7 +7,16 @@
 <link rel="stylesheet" href="css/styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23131218'/><rect x='2.5' y='2.5' width='11' height='11' rx='1' fill='%23fff'/><rect x='4.5' y='5' width='7' height='1.2' fill='%23131218'/><rect x='4.5' y='7.5' width='7' height='1.2' fill='%23131218'/><rect x='4.5' y='10' width='4' height='1.2' fill='%23f0532b'/></svg>">
 </head>
-<body>
+<body class="is-booting">
+
+<!-- Up before any script runs, and taken down when the layout has stopped
+     moving. Without it you watch the interface assemble itself: Edit is the
+     view marked on in this file, so every reload flashed Edit before landing
+     on the stage you were actually on. -->
+<div class="booting" id="booting">
+  <div class="brand">Writing&nbsp;Desk</div>
+  <div class="booting-bar"><i></i></div>
+</div>
 
 <!-- Shown by the stylesheet alone, so it is right before a single script has
      run — and stays right if none of them ever do. -->

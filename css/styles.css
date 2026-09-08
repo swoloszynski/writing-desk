@@ -835,3 +835,48 @@ body.is-reviewing .sec{ cursor:pointer; }
 .brand:hover{ color:#ff7a55; }
 /* Nothing behind the desk should be reachable while it is open. */
 body.is-desk .app{ pointer-events:none; }
+
+/* --- coming up ----------------------------------------------------------- */
+/*
+   Boot has several things to do before the interface means anything: read the
+   library, work out whether you were at the desk or in a document, switch to
+   the stage you were on, load every typeface, and break the pages against
+   those faces. Each of those moves something. Rather than let you watch them
+   happen one after another, nothing is shown until they have all finished.
+
+   `visibility`, not `display`, on the application underneath: the galley has
+   to be laid out from the first frame, because the fonts are measured against
+   it and one wrong metric moves every page break in the document.
+
+   A timer takes this down regardless of what boot manages, so a failure on
+   the way up cannot leave a permanently blank screen behind.
+*/
+body.is-booting .app{ visibility:hidden; }
+
+.booting{
+  position:fixed; inset:0; z-index:300;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  background:radial-gradient(120% 80% at 50% 0%, #1b1a22 0%, var(--bg) 60%);
+  transition:opacity .28s ease;
+}
+body:not(.is-booting) .booting{
+  opacity:0; pointer-events:none; visibility:hidden;
+  transition:opacity .28s ease, visibility 0s .28s;
+}
+.booting .brand{ border-right:0; padding:0; font-size:13px; }
+.booting-bar{
+  width:132px; height:2px; border-radius:2px;
+  background:var(--line); overflow:hidden;
+}
+.booting-bar i{
+  display:block; width:40%; height:100%; border-radius:2px;
+  background:var(--accent);
+  animation:booting-slide 1.15s ease-in-out infinite;
+}
+@keyframes booting-slide{
+  0%{ transform:translateX(-105%); }
+  100%{ transform:translateX(255%); }
+}
+/* A screen too small for the application is told so directly, not made to
+   watch it load first. */
+@media (max-width:900px), (max-height:500px){ .booting{ display:none; } }
