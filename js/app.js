@@ -173,7 +173,7 @@ function paintSectionPages() {
 
 let dragId = null;
 
-function sectionCard(s) {
+function sectionCard(s, { where = 'edit' } = {}) {
   const el = document.createElement('div');
   el.className = 'sec';
   el.dataset.id = s.id;
@@ -234,12 +234,17 @@ function sectionCard(s) {
     // galley took the selection with it.
     if (e.target.closest('input, button, select, label')) return;
 
+    markActive(s.id);
+
+    // In Format you are looking at pages, and a click here is asking which
+    // ones this section is on — not asking to be taken away to the editor.
+    if (where === 'format') { showSectionPages(s.id); return; }
+
     const target = flow.querySelector(`.wd-section[data-id="${s.id}"]`);
     if (!target) return;
     switchView('edit');
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (!reviewing) editor.focusIn(target);
-    markActive(s.id);
   });
 
   el.addEventListener('dragstart', e => {
@@ -275,9 +280,10 @@ function sectionCard(s) {
 }
 
 function renderSectionLists() {
-  for (const host of [$('#section-list'), $('#section-list-2')]) {
+  for (const [host, where] of [[$('#section-list'), 'edit'],
+                               [$('#section-list-2'), 'format']]) {
     host.textContent = '';
-    doc.sections.forEach(s => host.appendChild(sectionCard(s)));
+    doc.sections.forEach(s => host.appendChild(sectionCard(s, { where })));
   }
   paintSectionPages();
 }
@@ -832,6 +838,49 @@ function paintPageGrid() {
   host.appendChild(renderReadingOrder(flow, offsets, doc.settings, scale));
 }
 
+/** The section a page belongs to: the one that starts on it, or covers it. */
+function sectionAtPage(pageNo) {
+  let covering = null;
+  for (const s of doc.sections) {
+    const range = sectionPageRange(s.id);
+    if (!range) continue;
+    if (range[0] === pageNo) return s.id;
+    if (pageNo > range[0] && pageNo <= range[1] && !covering) covering = s.id;
+  }
+  return covering;
+}
+
+/**
+ * Show which pages a section is on.
+ *
+ * An outline around them for a moment, and a scroll to the first if it is out
+ * of sight. A section can run to a dozen pages, so the answer to "where is
+ * this?" has to be visible without hunting for it.
+ */
+function showSectionPages(id) {
+  const range = sectionPageRange(id);
+  if (!range) return;
+  const host = $('#page-grid');
+  host.querySelectorAll('.wd-cell.is-lit').forEach(c => c.classList.remove('is-lit'));
+
+  let first = null;
+  for (let p = range[0]; p <= range[1]; p++) {
+    const cell = host.querySelector(`.wd-cell[data-page="${p}"]`);
+    if (!cell) continue;
+    cell.classList.add('is-lit');
+    first ??= cell;
+  }
+  clearTimeout(showSectionPages.timer);
+  showSectionPages.timer = setTimeout(
+    () => host.querySelectorAll('.wd-cell.is-lit').forEach(c => c.classList.remove('is-lit')),
+    1800);
+
+  const wrap = host.parentElement;
+  if (!first) return;
+  const top = first.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+  if (top < 0 || top > wrap.clientHeight - 60) wrap.scrollTop += top - 26;
+}
+
 // ---------------------------------------------------------------------------
 // Save
 // ---------------------------------------------------------------------------
@@ -1343,6 +1392,18 @@ function bindToolbar() {
 
   $('#add-section').addEventListener('click', addSection);
   $('#add-section-2').addEventListener('click', addSection);
+
+  // Format is for looking. Going from a page to the words on it is a
+  // deliberate act, so it takes a deliberate gesture.
+  $('#page-grid').addEventListener('dblclick', e => {
+    const pageNo = +e.target.closest('.wd-cell')?.dataset.page;
+    if (!pageNo) return;
+    const id = sectionAtPage(pageNo);
+    if (!id) return;
+    switchView('edit');
+    markActive(id);
+    showArrival(id);
+  });
   $('#toggle-notes').addEventListener('click', () => {
     doc.settings.showComments = !notesOn();
     save();

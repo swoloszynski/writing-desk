@@ -355,6 +355,14 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .wd-cell-cap{ font-size:12px; color:var(--dimmer); letter-spacing:.05em;
              font-variant-numeric:tabular-nums; }
 
+/* The pages a section is on, said for a moment and then let go. */
+.wd-cell .wd-scaled{ outline:0 solid transparent; outline-offset:4px;
+                     transition:outline-color .5s ease .9s; }
+.wd-cell.is-lit .wd-scaled{
+  outline:2px solid var(--accent); transition:outline-color .12s;
+}
+.wd-cell.is-lit .wd-cell-cap{ color:var(--accent); }
+
 /* --- sheets -------------------------------------------------------------- */
 
 .sheets{ display:flex; flex-direction:column; gap:34px; align-items:flex-start; }
