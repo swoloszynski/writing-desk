@@ -288,6 +288,36 @@ export function setAtDesk(on) {
   } catch {}
 }
 
+/**
+ * Ask the browser to stop treating this origin as disposable.
+ *
+ * Storage a browser hands out by default is "best-effort", which is the polite
+ * name for evictable: one short of disk clears it, and Safari clears it for
+ * any site you have not opened in a week. Persistent storage is exempt from
+ * both. It is not proof against somebody clearing site data by hand — nothing
+ * a browser holds is — but that is a decision rather than an accident.
+ *
+ * Chrome answers silently, out of how much you seem to use the place. Firefox
+ * asks the reader, and that is the reason this is not called at boot: the
+ * first thing on the desk is an introduction nobody wrote, and a permission
+ * prompt about that is a question about nothing. It waits for a save.
+ *
+ * Asked once per page load at most. A browser that says no has said no.
+ */
+let persistence = null;
+export function requestPersistence() {
+  if (persistence) return persistence;
+  persistence = (async () => {
+    if (!navigator.storage?.persist) return false;
+    try {
+      return await navigator.storage.persisted() || await navigator.storage.persist();
+    } catch {
+      return false;
+    }
+  })();
+  return persistence;
+}
+
 /** Strip the parts that are derived, and stamp the ones that are not. */
 function forStorage(doc) {
   return { ...doc, updatedAt: new Date().toISOString(), words: wordsIn(doc) };
@@ -440,7 +470,7 @@ export function folioBaseline(settings, m) {
 // somebody's work is already in would strand the work; the cost of a slightly
 // wrong name is that somebody reads this comment.
 const DB_NAME = 'writing-desk-images';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let dbPromise = null;
 
 function db() {
@@ -451,9 +481,33 @@ function db() {
         const d = req.result;
         if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
         if (!d.objectStoreNames.contains('documents')) d.createObjectStore('documents');
+        // Directory handles, for the folder on disk. They live here rather
+        // than anywhere tidier because a handle is one of the few things only
+        // IndexedDB can hold: it does not survive JSON.
+        if (!d.objectStoreNames.contains('handles')) d.createObjectStore('handles');
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        const d = req.result;
+        // Let go when another tab needs to upgrade.
+        //
+        // A version bump cannot happen while an older connection is still
+        // open, and a browser does not force the issue: it fires this at the
+        // old tab and waits. A tab that ignores it holds every other tab on
+        // the loading screen, with no error anywhere, until it is closed. So
+        // this one steps aside, and takes the shared promise with it so the
+        // next read opens a fresh connection at the new version.
+        d.onversionchange = () => { d.close(); dbPromise = null; };
+        resolve(d);
+      };
       req.onerror = () => reject(req.error);
+      // Reached when the tab holding the old version predates the handler
+      // above and will not let go. Nothing can be done from here, but failing
+      // is still better than the wait, which never ends.
+      req.onblocked = () => {
+        dbPromise = null;
+        reject(new Error('Another tab has this desk open on an older version. ' +
+                         'Close it and reload.'));
+      };
     });
   }
   return dbPromise;
@@ -472,6 +526,10 @@ export async function putImage(id, record) { return tx('images', 'readwrite', s 
 export async function getImage(id)         { return tx('images', 'readonly',  s => s.get(id)); }
 export async function allImageIds()        { return tx('images', 'readonly',  s => s.getAllKeys()); }
 export async function deleteImage(id)      { return tx('images', 'readwrite', s => s.delete(id)); }
+
+export async function putHandle(key, value) { return tx('handles', 'readwrite', s => s.put(value, key)); }
+export async function getHandle(key)        { return tx('handles', 'readonly',  s => s.get(key)); }
+export async function deleteHandle(key)     { return tx('handles', 'readwrite', s => s.delete(key)); }
 
 /** Every picture with its id and the document it belongs to. */
 export async function allImages() {

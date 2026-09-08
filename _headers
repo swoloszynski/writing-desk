@@ -23,6 +23,12 @@
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
 
+# The worker decides how long every other file is allowed to be stale, so it is
+# the one file that must never be. Browsers cap its lifetime at 24 hours anyway;
+# this makes it none.
+/sw.js
+  Cache-Control: no-cache
+
 # Fonts are content-addressed by name and never change under the same filename.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable

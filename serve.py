@@ -11,6 +11,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 
 class NoCacheHandler(SimpleHTTPRequestHandler):
+    # Python's mimetypes table has never heard of .webmanifest, and a manifest
+    # served as octet-stream is a manifest the browser ignores — which shows up
+    # as the desk simply not offering to install.
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map,
+                      '.webmanifest': 'application/manifest+json'}
+
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store, max-age=0, must-revalidate')
         self.send_header('Pragma', 'no-cache')

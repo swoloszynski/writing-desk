@@ -1,0 +1,16 @@
+{
+  "name": "Writing Desk",
+  "short_name": "Writing Desk",
+  "description": "A desk for writing something and putting it on paper.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#131218",
+  "theme_color": "#131218",
+  "categories": ["productivity", "books"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

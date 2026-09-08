@@ -756,6 +756,32 @@ body.is-reviewing .sec{ cursor:pointer; }
 .desk .btn:hover{ border-color:rgba(255,255,255,.28); }
 .desk .btn.primary{ background:var(--accent); border-color:var(--accent); }
 
+/* --- the folder ---------------------------------------------------------- */
+/*
+   On the desk rather than inside the Save stage. Where the work is kept is a
+   fact about the shelf, not about any one document, and a reader who only
+   meets the question at the end of a piece has been unprotected for the whole
+   length of it.
+*/
+
+.desk-folder{
+  display:flex; align-items:center; gap:22px;
+  margin:-20px 0 40px; padding:14px 17px;
+  border:1px solid rgba(255,255,255,.09); border-radius:3px;
+  background:rgba(255,255,255,.028);
+}
+.desk-folder.is-on{ border-color:var(--accent-edge); background:rgba(46,196,182,.07); }
+.desk-folder strong{
+  display:block; font-size:12px; font-weight:700;
+  letter-spacing:.15em; text-transform:uppercase; color:#8d7f6d;
+}
+.desk-folder.is-on strong{ color:#6fd8cb; }
+.desk-folder-note{
+  display:block; margin-top:5px; max-width:74ch;
+  font-size:13px; line-height:1.5; color:#9d9285;
+}
+.desk-folder-actions{ margin-left:auto; display:flex; gap:9px; flex:0 0 auto; }
+
 /* --- piles --------------------------------------------------------------- */
 
 .pile{ margin-bottom:40px; }

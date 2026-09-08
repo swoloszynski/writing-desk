@@ -24,6 +24,7 @@ import { buildSettingsRail, buildFields, PRESS_SCHEMA, DRAFT_SCHEMA } from './se
 import { impose } from './imposition.js';
 import { clearMetricCache } from './extract.js';
 import { buildPDF, download, downloadBlob } from './pdf.js';
+import * as Folder from './folder.js';
 import { zip } from './zip.js';
 import { toMarkdown, fromMarkdown, lossyParts, blocksFromMarkdown } from './markdown.js';
 import { Draft, draftToSections, countWords } from './draft.js';
@@ -45,6 +46,10 @@ let activeComment = null;
 let commentFilter = 'open';
 let syncSettings = () => {};
 
+// Set at the end of boot, so that the writes boot does itself are not mistaken
+// for somebody working.
+let booted = false;
+
 /**
  * Write to disk — unless this is somebody else's draft.
  *
@@ -54,7 +59,18 @@ let syncSettings = () => {};
  * one route to storage goes through here.
  */
 function save(opts) {
-  if (!reviewing) Doc.save(doc, opts);
+  if (reviewing) return;
+  Doc.save(doc, opts);
+  // A save is also the first moment it is worth asking the browser to keep
+  // this origin out of the pile it clears when it wants the room back. Not at
+  // boot, because until somebody writes something there is nothing here to
+  // keep; and not more than once, which requestPersistence sees to itself.
+  if (booted) Doc.requestPersistence();
+  // And the folder, well behind the browser's own copy — see folder.js. The
+  // caller's `now` is deliberately not passed on: it means "get this into
+  // storage before the next line is typed", which the folder cannot honour
+  // and should not try to. Only the page going away forces a write.
+  Folder.schedule(doc);
 }
 
 const flow = $('#flow');
@@ -1535,6 +1551,89 @@ function reload() {
   save({ now: true });
 }
 
+/**
+ * The folder, on the desk.
+ *
+ * Four states and each one gets a different button, because "choose a folder"
+ * and "let me back into the folder I chose" are not the same request, and a
+ * reader shown the first when they need the second will reasonably think the
+ * desk has forgotten where it was.
+ */
+function paintFolder() {
+  const box = $('#folder-box');
+  const label = $('#folder-state');
+  const note = $('#folder-note');
+  const pick = $('#folder-pick');
+  const stop = $('#folder-forget');
+  const { state, name } = Folder.status();
+
+  pick.hidden = state === 'unsupported';
+  stop.hidden = state === 'off' || state === 'unsupported';
+  box.classList.toggle('is-on', state === 'ready');
+
+  if (state === 'unsupported') {
+    label.textContent = 'On this machine only';
+    note.textContent =
+      'This browser cannot write straight into a folder — Safari and Firefox ' +
+      'have no picker for it, Chrome and Edge do. Until then, Save · ' +
+      'Everything · .json is the same file, fetched by hand.';
+  } else if (state === 'off') {
+    pick.textContent = 'Choose a folder…';
+    label.textContent = 'On this machine only';
+    note.textContent =
+      'Everything here lives inside this browser, which is a thing people ' +
+      'clear. Pick a folder and every document on the desk is also written ' +
+      'there as a file you can see in the Finder. Choose one inside iCloud ' +
+      'Drive or Dropbox and it is backed up and on your other machines too.';
+  } else if (state === 'blocked') {
+    pick.textContent = `Reconnect “${name}”`;
+    label.textContent = 'Waiting to reconnect';
+    note.textContent =
+      `Still set to “${name}”, but a browser will not hand back write access ` +
+      'to a folder on its own after a reload. One click and it resumes.';
+  } else {
+    pick.textContent = 'Choose a different folder…';
+    label.textContent = 'Kept in a folder';
+    note.textContent =
+      `Every document here is also written into “${name}”, a few seconds ` +
+      'after you stop typing.';
+  }
+}
+
+async function folderButton() {
+  const blocked = Folder.status().state === 'blocked';
+  try {
+    const { state, name } = blocked ? await Folder.reconnect() : await Folder.choose();
+    paintFolder();
+    if (state !== 'ready') return toast('That folder is not writable yet.', true);
+
+    // Everything, not just what is open — see writeAll in folder.js.
+    const n = await Folder.writeAll(doc);
+    toast(n
+      ? `Saving into “${name}”. ${n} document${n === 1 ? '' : 's'} written.`
+      : `Chose “${name}”, but nothing could be written to it.`, !n);
+  } catch (err) {
+    // Closing the picker is not an error and must not be reported as one.
+    if (err?.name !== 'AbortError') {
+      console.warn('could not set the folder', err);
+      toast('Could not open that folder.', true);
+    }
+  }
+}
+
+async function stopFolder() {
+  const { name } = Folder.status();
+  if (!await ask({
+    title: 'Stop saving to the folder?',
+    body: `The files already in “${name}” stay where they are. This only stops ` +
+          'the desk adding to them.',
+    yes: 'Stop',
+  })) return;
+  await Folder.forget();
+  paintFolder();
+  toast('No longer saving to a folder.');
+}
+
 async function saveCopy() {
   editor.harvest();
   const bundle = await Doc.serialize(doc);
@@ -1686,6 +1785,8 @@ function bindDocumentActions() {
     notesFile.value = '';
   });
   $('#notes-open').addEventListener('click', () => notesFile.click());
+  $('#folder-pick').addEventListener('click', folderButton);
+  $('#folder-forget').addEventListener('click', stopFolder);
 }
 
 /** Rebuild the settings panel from scratch, and remember how to re-read it. */
@@ -1963,6 +2064,7 @@ async function paintDesk() {
     ? 'Nothing on the desk yet.'
     : `${n} document${n === 1 ? '' : 's'}, most recent first.`;
   $('#desk-close').hidden = n === 0;
+  paintFolder();
 
   for (const status of Doc.STATUSES) {
     const mine = all.filter(d => d.status === status.id);
@@ -2150,6 +2252,9 @@ async function boot() {
     adopt(await Doc.openCurrent());
   } catch (err) {
     console.warn('could not open the library; starting on a fresh sheet', err);
+    // Worth saying out loud. A blank sheet that looks normal but cannot save
+    // is the one failure here that costs somebody their afternoon.
+    toast(err?.message || 'Could not open your documents. Nothing typed here will be saved.', true);
   }
 
   watchHash();
@@ -2270,12 +2375,30 @@ async function boot() {
     if (reviewing) return;
     editor.harvest();
     save({ now: true });
+    // Best effort only. Writing a file is asynchronous and a page being torn
+    // down does not have to wait; the copy in IndexedDB above is the one that
+    // is guaranteed to land, and the folder catches up on the next save.
+    Folder.schedule(doc, { now: true });
   };
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') persist();
   });
   window.addEventListener('pagehide', persist);
   window.addEventListener('beforeunload', persist);
+
+  // The worker. It is what makes the desk installable, and an installed desk
+  // is one the browser grants persistent storage to rather than refusing —
+  // which is the whole reason requestPersistence() has something to ask for.
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js')
+      .catch(err => console.warn('no offline copy this time', err));
+  }
+
+  // Never prompts: it only reports whether the folder picked last time can
+  // still be written to. Asking again needs a click, which the Save rail has.
+  Folder.resume().then(paintFolder).catch(() => {});
+
+  booted = true;
 
   // A hook for poking at the internals from the console.
   window.desk = { doc, editor, draft, Doc, Notes, Share, paintDesk, showDesk,
