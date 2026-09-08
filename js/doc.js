@@ -88,7 +88,7 @@ export function defaultSettings() {
     press: { flipBack: false, foldLine: true, cropMarks: false, spreadGap: true,
              exportMode: 'reading' },
 
-    draft: { sound: false, focus: true, goal: 0, panel: true },
+    draft: { sound: false, focus: true, goal: 0, panel: false },
 
     // Whether Edit shows the comments beside the writing. Off to begin with:
     // Edit is for writing, and the notes are there when you ask for them.
