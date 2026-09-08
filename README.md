@@ -121,6 +121,14 @@ a genuine text field is focused. What is taken away is taken away in
 happens — whatever caused it, including the delete key on a phone, the Edit
 menu, and a trackpad gesture.
 
+The column shakes its head the first couple of times you reach for delete and
+then stops, while the message goes on appearing every time. Reaching for that
+key is a twenty-year habit and it does not unlearn itself in an afternoon, so
+the refusal has to survive being hit over and over without turning into a
+scolding. A line of text you can ignore does that; a page that flinches does
+not. Counted per habit, because knowing there is no delete tells you nothing
+about the arrow keys.
+
 ### The one thing that gets shorter
 
 Pressing return on an empty bullet ends the list, which means removing the

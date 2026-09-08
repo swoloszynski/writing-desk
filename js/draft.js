@@ -16,6 +16,9 @@
 /** Lines above the one being typed that keep their full contrast. */
 const KEEP_CLEAR_LINES = 7;
 
+/** How often the page flinches at a refusal before it takes the point. */
+const SHAKE_TIMES = 2;
+
 const DELETING = /^delete/;
 const UNDOING = /^history/;
 
@@ -149,6 +152,8 @@ export class Draft extends EventTarget {
     // Emphasis is opened and closed by the same shortcut, because with no
     // selection there is nothing to wrap — you turn bold on, type, turn it off.
     this.open = { bold: false, italic: false };
+    // How many times each kind of refusal has happened, this session.
+    this.refusals = {};
     this.clicker = new Clicker();
     this.tick = null;
     this._bind();
@@ -346,11 +351,31 @@ export class Draft extends EventTarget {
     this.append('\n');
   }
 
+  /**
+   * Refuse something, and say so.
+   *
+   * The column shakes its head the first couple of times and then stops,
+   * while the message goes on appearing every time. Reaching for delete is a
+   * twenty-year habit and it does not unlearn itself in an afternoon — so the
+   * refusal has to survive being hit over and over without becoming a
+   * scolding. A line of text you can ignore does that; the whole page
+   * flinching does not.
+   *
+   * Counted per reason, because knowing there is no delete tells you nothing
+   * about the arrow keys.
+   */
   nudge(reason) {
-    this.column.classList.remove('is-nudged');
-    void this.column.offsetWidth;   // restart the animation
-    this.column.classList.add('is-nudged');
-    this.dispatchEvent(new CustomEvent('refused', { detail: { reason } }));
+    const seen = (this.refusals[reason] = (this.refusals[reason] || 0) + 1);
+
+    if (seen <= SHAKE_TIMES) {
+      this.column.classList.remove('is-nudged');
+      void this.column.offsetWidth;   // restart the animation
+      this.column.classList.add('is-nudged');
+    } else {
+      this.column.classList.remove('is-nudged');
+    }
+
+    this.dispatchEvent(new CustomEvent('refused', { detail: { reason, seen } }));
   }
 
   sound(kind) {
