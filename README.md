@@ -412,9 +412,12 @@ What it will not do is merge. Each document carries the version this desk last
 wrote to its file, which is enough to tell *the folder has moved on* from *I
 have moved on* from *we have both moved*. The first two are applied without
 asking. The third is a fork: two documents that used to be one, and no amount
-of comparing clocks turns them back into one. Both are kept, neither is
-touched, and the strip on the desk names the ones in that state. Resolving it
-is by hand, in the folder.
+of comparing clocks turns them back into one. Nothing is thrown away. The
+folder's version carries on as the document, and what was on this desk is kept
+beside it as a second one marked *(other version)*, for you to compare and
+delete whichever you did not mean. Which of the two keeps the original
+identity is not a matter of taste: it is what stops two desks trading copies
+of the same document until somebody closes a lid.
 
 Deleting a document deletes its file. Deleting a *file* does not delete the
 document — the next look simply writes it back. A folder whose files have not

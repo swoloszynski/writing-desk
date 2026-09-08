@@ -298,20 +298,21 @@ async function readBundle(handle) {
  *   same version both sides     nothing to do
  *   only the file has moved     take it
  *   only this desk has moved    write it out
- *   both have moved             leave both alone and say so
+ *   both have moved             keep both, as two documents
  *
- * The last case is a genuine fork and is not resolved here. Two people, or
- * one person on two machines, have written two different documents that used
- * to be one, and picking a winner by clock is a coin toss with somebody's
- * afternoon. Both files stay, both desks keep what they have, and the strip
- * on the desk says which documents are in that state.
+ * The last case is a genuine fork: two people, or one person on two machines,
+ * have written two different documents that used to be one. Picking a winner
+ * by clock is a coin toss with somebody's afternoon, so nothing is thrown
+ * away — the folder's version continues as the document, and what was on this
+ * desk is kept beside it under its own name. Messy, and better than the
+ * alternative, which is tidy and loses an afternoon.
  */
 export async function scan({ current = null } = {}) {
   if (state !== 'ready' || !dir) return null;
   if (writing) return null;
   writing = true;
 
-  const out = { added: 0, pulled: 0, pushed: 0, conflicts: [], touched: new Set() };
+  const out = { added: 0, pulled: 0, pushed: 0, copies: [], touched: new Set() };
   try {
     const local = new Map((await Doc.listDocuments()).map(d => [d.id, d]));
     // The open document is up to four seconds ahead of its own record.
@@ -351,7 +352,28 @@ export async function scan({ current = null } = {}) {
       const weMoved = (mine.updatedAt || null) !== markAt;
 
       if (theyMoved && weMoved) {
-        out.conflicts.push({ id, title: mine.title || 'Untitled', file: handle.name });
+        // A fork: two documents that used to be one. Both are kept, and which
+        // one keeps the original identity is not a matter of taste — it is
+        // what stops the two desks trading copies for ever.
+        //
+        // The folder's version is taken into the existing document, so this
+        // desk and the file agree again and the next look finds nothing to
+        // do. What was here is preserved as a new document with a new id,
+        // which is written out as a new file the other desk will simply take
+        // in. Do it the other way round — keep ours under the old id and push
+        // it — and the other desk sees its own document overwritten, forks in
+        // turn, and the two of them make copies until somebody closes a lid.
+        const kept = structuredClone(mine);
+        kept.id = Doc.newDocument().id;
+        kept.title = `${mine.title || 'Untitled'} (other version)`;
+        await Doc.writeDocument(kept, { restamp: false });
+        out.copies.push({ title: kept.title, from: mine.title || 'Untitled' });
+        out.touched.add(kept.id);
+
+        const doc = await Doc.deserialize(bundle);
+        await Doc.writeDocument(doc, { restamp: false });
+        marks[id] = { name: handle.name, updatedAt: doc.updatedAt || fileAt };
+        out.touched.add(id);
       } else if (theyMoved) {
         const doc = await Doc.deserialize(bundle);
         await Doc.writeDocument(doc, { restamp: false });

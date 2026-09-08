@@ -158,6 +158,7 @@ export class Draft extends EventTarget {
     this.tick = null;
     this._bind();
     this.render();
+    this.watchHeight();
   }
 
   get text() { return this.doc.draft.text; }
@@ -218,9 +219,42 @@ export class Draft extends EventTarget {
     }
 
     this.scroller.classList.toggle('is-focusmode', !!this.doc.settings.draft.focus);
-    this.scroller.scrollTop = this.scroller.scrollHeight;
+    this.pin();
     this.paintFade();
     this.paintStats();
+  }
+
+  /**
+   * Keep the line being typed on the screen.
+   *
+   * Pinning to the bottom of the content is what puts it there: the canvas
+   * carries most of a screen of padding below the text, so the end of the
+   * content sitting at the bottom of the window leaves the line you are on
+   * comfortably above the middle.
+   *
+   * The height read here is only right if the browser has finished laying the
+   * column out, and there are ordinary reasons it has not: a paragraph that
+   * has just wrapped onto one more line, a webfont arriving, the panel opening
+   * and narrowing the measure. A pin computed against a height that is about
+   * to change lands short — and it stays short, because every later keystroke
+   * pins against the same stale height. That is the shape of the bug this
+   * exists to prevent: the line being typed sits below the bottom of the
+   * window, and scrolling back up to it does nothing, because the next
+   * character puts it back down again.
+   *
+   * So the column is watched as well. Whenever its height actually changes,
+   * whatever the reason and whenever it lands, the pin is done again against
+   * the height it really has.
+   */
+  pin() {
+    this.scroller.scrollTop = this.scroller.scrollHeight;
+  }
+
+  /** Re-pin whenever the rendered column changes height for any reason. */
+  watchHeight() {
+    if (typeof ResizeObserver !== 'function') return;
+    this.watcher = new ResizeObserver(() => this.pin());
+    this.watcher.observe(this.lines);
   }
 
   /**

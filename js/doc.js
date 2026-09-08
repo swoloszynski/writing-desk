@@ -652,7 +652,17 @@ export async function deserialize(bundle) {
  * deletes the other one's pictures every time you open this one.
  */
 export async function collectGarbage(doc) {
-  const used = referencedImages(doc);
+  // Everything anything still points at, not only this document. Two
+  // documents can share a picture — a fork in the folder makes exactly that,
+  // one document becoming two that reference the same image ids — and the
+  // pictures are filed under whichever of them was written first. Sweeping on
+  // this document's own references alone would take the other one's photographs
+  // out from under it.
+  const used = new Set();
+  for (const d of await listDocuments()) {
+    for (const id of referencedImages(d)) used.add(id);
+  }
+  for (const id of referencedImages(doc)) used.add(id);
   const mine = (await allImages()).filter(rec => rec.docId === doc.id);
   await Promise.all(mine.filter(rec => !used.has(rec.id)).map(rec => {
     const url = urlCache.get(rec.id);

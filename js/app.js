@@ -1602,11 +1602,12 @@ function paintFolder() {
     // still exist; the reader is the only one who can say which is the one
     // they meant.
     if (folderConflicts.length) {
-      const which = folderConflicts.map(c => `“${c.title}”`).join(', ');
+      const which = folderConflicts.map(c => `“${c.from}”`).join(', ');
       note.textContent +=
         ` ${which} ${folderConflicts.length === 1 ? 'was' : 'were'} also ` +
-        'edited somewhere else since this desk last wrote. Both versions have ' +
-        'been kept: this one, and the file in the folder.';
+        'edited somewhere else since this desk last wrote. Nothing was thrown ' +
+        'away: both versions are on the desk, the second one marked “other ' +
+        'version”, for you to compare and delete whichever you do not want.';
     }
   }
 }
@@ -1636,7 +1637,7 @@ async function syncFolder({ announce = true, throttle = false } = {}) {
 
   const out = await Folder.scan({ current: doc });
   if (!out) return null;
-  folderConflicts = out.conflicts;
+  folderConflicts = out.copies;
 
   // The open document may be one of the ones that moved.
   if (out.touched.has(doc.id)) {
@@ -1656,6 +1657,8 @@ async function syncFolder({ announce = true, throttle = false } = {}) {
     const said = [
       out.added  ? `Brought in ${out.added} document${out.added === 1 ? '' : 's'}.` : '',
       out.pulled ? `Updated ${out.pulled} from the folder.` : '',
+      out.copies.length
+        ? `${out.copies.length} was edited in two places; both versions kept.` : '',
     ].filter(Boolean).join(' ');
     if (said) toast(said);
   }
