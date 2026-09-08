@@ -155,6 +155,22 @@ export function defaultDoc() {
   };
 }
 
+/**
+ * A document with nothing in it.
+ *
+ * The base for anything read back from storage or handed to us from outside.
+ * `defaultDoc` carries the introduction, and the introduction belongs to
+ * exactly one document — the first one this application ever makes. A record
+ * that arrives with no sections is an empty document, not an invitation to
+ * put our own writing in it.
+ */
+export function blankDoc() {
+  const doc = defaultDoc();
+  doc.sections = [{ id: uid('s'), name: 'Opening', startsNewPage: false,
+                    html: '<p><br></p>' }];
+  return doc;
+}
+
 /** Deep-merge saved settings over the defaults, so old saves survive new keys. */
 function merge(base, over) {
   if (!over || typeof over !== 'object' || Array.isArray(over)) return base;
@@ -203,7 +219,7 @@ export function normalizeComment(c) {
 
 /** Take a plain object apart into a document, filling in anything missing. */
 export function adoptShape(saved) {
-  const doc = defaultDoc();
+  const doc = blankDoc();
   doc.id = typeof saved.id === 'string' && saved.id ? saved.id : doc.id;
   doc.status = STATUS_IDS.has(saved.status) ? saved.status : doc.status;
   doc.updatedAt = saved.updatedAt || doc.updatedAt;
@@ -306,10 +322,8 @@ export async function deleteDocument(id) {
 }
 
 export function newDocument({ title = 'Untitled' } = {}) {
-  const doc = defaultDoc();
+  const doc = blankDoc();
   doc.title = title;
-  doc.sections = [{ id: uid('s'), name: 'Opening', startsNewPage: false,
-                    html: '<p><br></p>' }];
   return doc;
 }
 
