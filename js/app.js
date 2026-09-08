@@ -144,12 +144,45 @@ function wordCount() {
   }, 0);
 }
 
+/**
+ * How many words are in what you have got hold of.
+ *
+ * Only a selection inside the galley counts. Dragging across the rails or the
+ * toolbar is not somebody asking how long a passage is, and answering it as
+ * though it were would replace the document's own count with a number about
+ * a button.
+ */
+function selectedWords() {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return 0;
+  const node = sel.getRangeAt(0).commonAncestorContainer;
+  const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  if (!el || !flow.contains(el)) return 0;
+  return countWords(sel.toString());
+}
+
+// The last total, so that moving a selection does not re-read every section
+// to say a number that has not changed.
+let totalWords = 0;
+
 function paintStats() {
   const open = Notes.openCount(doc);
+  totalWords = wordCount();
+  renderStats();
+
+  const badge = $('#tab-comments');
+  badge.hidden = open === 0;
+  badge.textContent = String(open);
+}
+
+/** The corner, from figures already worked out. */
+function renderStats() {
   const pages = offsets.length;
-  const words = wordCount();
+  const picked = selectedWords();
   const bits = [
-    `<b>${words.toLocaleString()}</b> word${words === 1 ? '' : 's'}`,
+    picked
+      ? `<b>${picked.toLocaleString()}</b> of ${totalWords.toLocaleString()} words`
+      : `<b>${totalWords.toLocaleString()}</b> word${totalWords === 1 ? '' : 's'}`,
     `<b>${pages}</b> page${pages === 1 ? '' : 's'}`,
   ];
   if (Doc.isFolded(doc.settings)) {
@@ -157,10 +190,6 @@ function paintStats() {
     bits.push(`<b>${padded / 4}</b> sheet${padded / 4 === 1 ? '' : 's'}`);
   }
   $('#stats').innerHTML = bits.join(' · ');
-
-  const badge = $('#tab-comments');
-  badge.hidden = open === 0;
-  badge.textContent = String(open);
 }
 
 // ---------------------------------------------------------------------------
@@ -1858,6 +1887,10 @@ function bindDocumentActions() {
     notesFile.value = '';
   });
   $('#notes-open').addEventListener('click', () => notesFile.click());
+  // Selecting a passage turns the corner into a count of that passage; letting
+  // it go puts the document's own count back.
+  document.addEventListener('selectionchange', renderStats);
+
   $('#folder-pick').addEventListener('click', folderButton);
   $('#folder-forget').addEventListener('click', stopFolder);
 }
