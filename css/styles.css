@@ -13,9 +13,22 @@
   --ink:#eceaf3;
   --dim:#9b96ab;
   --dimmer:#6d687d;
-  --accent:#f0532b;
-  --accent-soft:rgba(240,83,43,.16);
+  /* Bright enough to read as a mark on the dark ground, and cool enough to
+     sit against the warm brown of the desk rather than fight it. Anything
+     printed *on* the accent has to be dark: white on this is unreadable. */
+  --accent:#2ec4b6;
+  --accent-soft:rgba(46,196,182,.16);
+  --accent-line:rgba(46,196,182,.55);
+  --accent-edge:rgba(46,196,182,.35);
+  --on-accent:#06231f;
   --paper:#fff;
+  /* Comments are amber on purpose, and stay amber whatever the accent is.
+     "There is a note here" and "this is the one you are on" have to look
+     like different things, not two strengths of the same thing. */
+  --note:rgba(240,183,43,.30);
+  --note-strong:rgba(240,183,43,.70);
+  --note-rule:rgba(214,142,0,.65);
+
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.42);
   --ui:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --rail-w:274px;
@@ -89,14 +102,15 @@ button{ background:none; border:0; cursor:pointer; }
   transition:border-color .12s, background .12s;
 }
 .btn:hover{ border-color:var(--dimmer); }
-.btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.primary{ background:var(--accent); border-color:var(--accent);
+              color:var(--on-accent); font-weight:600; }
 .btn.primary:hover{ filter:brightness(1.08); }
 .btn:disabled{ opacity:.45; cursor:default; }
 .btn.action{
   display:block; width:100%; text-align:left;
   padding:8px 11px; font-size:13.5px; font-weight:500;
 }
-.btn.action.danger{ color:var(--accent); border-color:rgba(240,83,43,.35); }
+.btn.action.danger{ color:var(--accent); border-color:var(--accent-edge); }
 .btn.action.danger:hover{ background:var(--accent-soft); border-color:var(--accent); }
 
 /* --- layout -------------------------------------------------------------- */
@@ -188,7 +202,7 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .seams{ position:absolute; inset:0; pointer-events:none; z-index:3; }
 .wd-seam{
   position:absolute; left:0; right:0; height:0;
-  border-top:1px dashed rgba(240,83,43,.55);
+  border-top:1px dashed var(--accent-line);
 }
 .wd-seam::after{
   content:''; position:absolute; left:0; right:0; top:-9px; height:9px;
@@ -206,7 +220,7 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 /* Writing that has just come over from the drafting room, said once. */
 .wd-section.is-arrived{ animation:arrived 1.6s ease-out; }
 @keyframes arrived{
-  0%, 40%{ background:rgba(240,183,43,.34); }
+  0%, 40%{ background:var(--note); }
   100%{ background:rgba(240,183,43,0); }
 }
 .wd-section:focus-visible{ outline:none; }
@@ -426,7 +440,7 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .tabs button.is-on .tnum{ border-color:var(--accent); color:var(--accent); }
 .tbadge{
   min-width:18px; height:18px; padding:0 5px; border-radius:9px;
-  display:grid; place-items:center; background:var(--accent); color:#fff;
+  display:grid; place-items:center; background:var(--accent); color:var(--on-accent);
   font:700 10.5px/1 var(--ui); font-variant-numeric:tabular-nums;
 }
 .tbadge.is-quiet{ background:var(--dimmer); min-width:8px; height:8px; padding:0;
@@ -583,11 +597,11 @@ body.is-reviewing .sec{ cursor:pointer; }
 .marks{ position:absolute; inset:0; pointer-events:none; z-index:1; }
 .wd-mark{
   position:absolute; pointer-events:none;
-  background:rgba(240,183,43,.3);
-  box-shadow:inset 0 -1.5px 0 rgba(214,142,0,.65);
+  background:var(--note);
+  box-shadow:inset 0 -1.5px 0 var(--note-rule);
   border-radius:2px;
 }
-.wd-mark.is-active{ background:rgba(240,83,43,.32);
+.wd-mark.is-active{ background:rgba(46,196,182,.34);
                     box-shadow:inset 0 -1.5px 0 var(--accent); }
 
 .popbar{
@@ -613,7 +627,7 @@ body.is-reviewing .sec{ cursor:pointer; }
 .thread.is-orphaned{ border-style:dashed; }
 
 .thread-quote{
-  border-left:2px solid rgba(240,183,43,.7); padding:1px 0 1px 9px;
+  border-left:2px solid var(--note-strong); padding:1px 0 1px 9px;
   color:var(--dim); font-size:13.5px; line-height:1.5; margin-bottom:9px;
   display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
   overflow:hidden;
@@ -734,9 +748,9 @@ body.is-reviewing .sec{ cursor:pointer; }
 .desk-head{ display:flex; align-items:flex-end; gap:24px; margin-bottom:44px; }
 .desk-head h1{
   margin:0; font-size:15px; font-weight:700; letter-spacing:.2em;
-  text-transform:uppercase; color:#e8a06a;
+  text-transform:uppercase; color:#6fd8cb;
 }
-.desk-sub{ margin:7px 0 0; font-size:13.5px; color:#a2937f; }
+.desk-sub{ margin:7px 0 0; font-size:13.5px; color:#9d9285; }
 .desk-actions{ margin-left:auto; display:flex; gap:9px; flex:0 0 auto; }
 .desk .btn{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); }
 .desk .btn:hover{ border-color:rgba(255,255,255,.28); }
@@ -810,7 +824,7 @@ body.is-reviewing .sec{ cursor:pointer; }
   font:500 11px/1 var(--ui); padding:5px 7px; cursor:pointer;
 }
 .sheet-menu button:hover{ background:rgba(0,0,0,.13); color:#000; }
-.sheet-menu .del:hover{ background:var(--accent); color:#fff; }
+.sheet-menu .del:hover{ background:var(--accent); color:var(--on-accent); }
 
 /* A fresh sheet, waiting. */
 .sheet-card.is-new{
@@ -832,7 +846,7 @@ body.is-reviewing .sec{ cursor:pointer; }
 .status-pick:focus{ outline:none; border-color:var(--accent); }
 
 .brand{ font:inherit; cursor:pointer; }
-.brand:hover{ color:#ff7a55; }
+.brand:hover{ color:#6fd8cb; }
 /* Nothing behind the desk should be reachable while it is open. */
 body.is-desk .app{ pointer-events:none; }
 
