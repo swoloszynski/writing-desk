@@ -190,22 +190,6 @@ The document, read-only, with somewhere to put remarks about it. Select any
 passage and leave a note; the notes stack up in the rail on the right, and
 each one is anchored to the words it was written about.
 
-A note can carry a rewrite as well as a remark. **Suggest an edit** opens with
-the passage as it stands, because most proposed edits are a change to a
-sentence rather than a different sentence, and retyping the part you agree
-with is how a suggestion turns into an argument about a comma nobody meant to
-move. The card shows the old wording struck through and the new wording under
-it; the author gets **Accept** and **Reject**.
-
-Accepting re-anchors first and then checks that the words under the range are
-still the words the suggestion was written about. Everywhere else in the
-comment machinery being approximate costs a highlight a pixel — a suggestion
-applied at stale offsets would rewrite whatever sentence happened to be
-sitting at those numbers, so it refuses and says so instead. Only the author
-of the piece can accept: a reader is holding a copy, and letting them accept
-would change their copy and nothing else, which looks exactly like having
-changed the document.
-
 It is the same stage whether the reader is you or somebody else. Reviewing
 your own draft is not a different act from reviewing a friend's, and the only
 thing that changes is who is holding it — so self-review and shared review are

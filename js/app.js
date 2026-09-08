@@ -435,20 +435,6 @@ function threadCard(c, { compact = false } = {}) {
   by.querySelector('span').textContent = Notes.relativeTime(c.createdAt);
   el.appendChild(by);
 
-  // The proposal, before anything anybody said about it: the passage struck
-  // through and the wording offered in its place.
-  if (Notes.isSuggestion(c)) {
-    el.classList.add('is-suggestion');
-    const box = document.createElement('div');
-    box.className = 'thread-suggestion';
-    const was = document.createElement('del');
-    was.textContent = c.quote || '';
-    const now = document.createElement('ins');
-    now.textContent = c.suggestion || '(delete this)';
-    box.append(was, now);
-    el.appendChild(box);
-  }
-
   if (c.text) {
     const note = document.createElement('div');
     note.className = 'thread-note';
@@ -467,13 +453,7 @@ function threadCard(c, { compact = false } = {}) {
   }
 
   // A comment with nothing said in it is one that has just been made, and the
-  // box to say it in is the whole reason the card is on screen. On a
-  // suggestion the first box is the wording itself; the remark is optional and
-  // comes after.
-  const iWroteIt = c.author === (Notes.whoAmI() || 'Anonymous');
-  if (Notes.isSuggestion(c) && !c.resolved && (reviewing || iWroteIt)) {
-    el.appendChild(composer(c, 'wording'));
-  }
+  // box to say it in is the whole reason the card is on screen.
   if (!c.text) el.appendChild(composer(c, 'note'));
 
   const actions = document.createElement('div');
@@ -488,28 +468,6 @@ function threadCard(c, { compact = false } = {}) {
       el.querySelector('.reply-box').focus();
     });
     actions.appendChild(reply);
-  }
-
-  // Only the author of the piece decides. A reader looking at a shared draft
-  // is holding a copy; letting them "accept" would change their copy and
-  // nothing else, which looks exactly like having changed the document.
-  if (!reviewing && Notes.isSuggestion(c) && !c.resolved && !c.orphaned) {
-    const yes = document.createElement('button');
-    yes.className = 'go';
-    yes.textContent = 'Accept';
-    yes.addEventListener('click', () => acceptSuggestion(c));
-    actions.appendChild(yes);
-
-    const no = document.createElement('button');
-    no.textContent = 'Reject';
-    no.addEventListener('click', () => {
-      c.resolved = true;
-      save();
-      paintThreads();
-      paintMarks();
-      paintStats();
-    });
-    actions.appendChild(no);
   }
 
   if (!reviewing) {
@@ -563,66 +521,20 @@ function threadCard(c, { compact = false } = {}) {
   return el;
 }
 
-/**
- * Take a suggestion into the document.
- *
- * Re-anchored first, and refused if the passage has since gone: an accepted
- * suggestion that lands at stale offsets rewrites whatever happens to be
- * sitting there now, which is the one outcome worse than not applying it.
- *
- * Applied to the live section and then harvested, so the change goes through
- * the same door as anything typed by hand — and can be undone the same way.
- */
-function acceptSuggestion(c) {
-  editor.harvest();
-  reanchorAll();
-  const sectionEl = flow.querySelector(`.wd-section[data-id="${c.sectionId}"]`);
-
-  if (c.orphaned || !sectionEl || !Notes.applySuggestion(sectionEl, c)) {
-    return toast('That passage has changed too much to put this in automatically.', true);
-  }
-
-  editor.harvest();
-  c.resolved = true;
-  c.settled = 'accepted';
-  save();
-  repaginate();
-  paintMarks();
-  paintThreads();
-  paintStats();
-  toast('Suggestion applied.');
-}
-
-/** A box for a first note, a wording, or a reply, with the same manners. */
+/** A box for a first note or a reply, with the same manners either way. */
 function composer(c, kind) {
   const box = document.createElement('textarea');
   box.className = 'reply-box';
-  box.rows = 2;
-  box.placeholder = {
-    note: 'What do you want to say about this?',
-    wording: 'The wording you would put there instead',
-    reply: 'Reply…',
-  }[kind];
-  // The wording box opens holding the passage, so an edit is an edit rather
-  // than a retyping.
-  if (kind === 'wording') { box.classList.add('is-wording'); box.value = c.suggestion || ''; }
+  box.rows = kind === 'note' ? 2 : 2;
+  box.placeholder = kind === 'note' ? 'What do you want to say about this?' : 'Reply…';
 
   const send = () => {
-    const text = kind === 'wording' ? box.value : box.value.trim();
-    // An emptied wording box is a proposal to cut the passage, which is a
-    // real suggestion and must not be mistaken for an unfinished one.
-    if (!text && kind !== 'wording') return;
+    const text = box.value.trim();
+    if (!text) return;
     const author = Notes.whoAmI() || (reviewing ? 'Anonymous' : doc.author || 'You');
-    if (kind === 'wording') {
-      if (text === c.suggestion) return;
-      c.suggestion = text;
-    } else if (kind === 'note') {
-      c.text = text;
-      box.value = '';
-    } else {
-      c.replies.push({ id: Doc.uid('r'), author, text, createdAt: new Date().toISOString() });
-      box.value = '';
-    }
+    if (kind === 'note') c.text = text;
+    else c.replies.push({ id: Doc.uid('r'), author, text, createdAt: new Date().toISOString() });
+    box.value = '';
     save();
     paintThreads();
     paintStats();
@@ -787,17 +699,12 @@ function bindCommentBar() {
   document.addEventListener('selectionchange', () => requestAnimationFrame(place));
   for (const c of [$('#canvas'), $('#comment-canvas')]) c.addEventListener('scroll', place);
 
-  const start = async kind => {
+  $('#add-comment').addEventListener('mousedown', e => e.preventDefault());
+  $('#add-comment').addEventListener('click', async () => {
     // Take the passage first. Opening a dialog moves the focus and the
     // selection goes with it, and the selection is what the comment is made of.
     const c = Notes.commentFromSelection(flow, { author: Notes.whoAmI() });
     if (!c) return toast('Select a passage inside one section first.');
-
-    // A suggestion opens with the passage as it stands, because most of them
-    // are a change to a sentence rather than a different sentence, and
-    // retyping the part you agree with is how a proposed edit turns into an
-    // argument about a comma you never meant to move.
-    if (kind === 'suggestion') c.suggestion = c.quote;
 
     if (!Notes.whoAmI()) {
       const name = await ask({
@@ -820,12 +727,7 @@ function bindCommentBar() {
     const box = $(`${threadHost()} .thread[data-id="${c.id}"] .reply-box`);
     box?.focus();
     box?.scrollIntoView({ block: 'center' });
-  };
-
-  for (const [id, kind] of [['#add-comment', 'note'], ['#add-suggestion', 'suggestion']]) {
-    $(id).addEventListener('mousedown', e => e.preventDefault());
-    $(id).addEventListener('click', () => start(kind));
-  }
+  });
 
   // The highlights are painted under the text and are not clickable, so that
   // a click in a commented sentence still puts the caret there. Finding the
