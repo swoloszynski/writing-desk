@@ -121,16 +121,13 @@ export function defaultDoc() {
     stage: 'edit',
     draft: defaultDraft(),
     comments: [],
-    // True until somebody types. It is what lets a first draft replace the
-    // sample text instead of landing underneath it.
-    sampleIntact: true,
     sections: [
       {
         id: uid('s'),
-        name: 'Opening',
+        name: 'About Writing Desk',
         startsNewPage: false,
         html:
-          '<h1>A working title</h1>' +
+          '<h1>About Writing Desk</h1>' +
           '<p>Five stages, left to right along the top, and they are meant to ' +
           'be walked in order.</p>' +
           '<p><b>Draft</b> is a room with no back door. You can type and you ' +
@@ -148,7 +145,11 @@ export function defaultDoc() {
           'margins, and one set of type rules that every heading and ' +
           'paragraph of the same kind obeys at once.</p>' +
           '<p><b>Save</b> writes the file — a PDF laid out exactly as the ' +
-          'preview shows it, or markdown, or plain text.</p>',
+          'preview shows it, or markdown, or plain text.</p>' +
+          '<p>Behind all five is <b>the desk</b>: the name in the top left ' +
+          'takes you to everything you have written. This section is ours, ' +
+          'not yours — delete it whenever you like, from the list on the ' +
+          'left. Nothing here removes your writing on its own.</p>',
       },
     ],
   };
@@ -212,7 +213,6 @@ export function adoptShape(saved) {
   doc.settings = merge(defaultSettings(), saved.settings);
   doc.draft = { ...defaultDraft(), ...(saved.draft || {}) };
   doc.comments = Array.isArray(saved.comments) ? saved.comments.map(normalizeComment) : [];
-  doc.sampleIntact = saved.sampleIntact === true;
   doc.stage = STAGES.has(saved.stage) ? saved.stage : doc.stage;
   if (Array.isArray(saved.sections) && saved.sections.length) {
     doc.sections = saved.sections.map(normalizeSection);
@@ -291,7 +291,6 @@ export function newDocument({ title = 'Untitled' } = {}) {
   doc.title = title;
   doc.sections = [{ id: uid('s'), name: 'Opening', startsNewPage: false,
                     html: '<p><br></p>' }];
-  doc.sampleIntact = false;
   return doc;
 }
 

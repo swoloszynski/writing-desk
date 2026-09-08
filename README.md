@@ -84,12 +84,17 @@ is the only way to know you have to close it, and with no way back, closing it
 is the only option.
 
 **Take it to Edit** turns the draft into sections — one per level-one heading,
-because that is what a writer means by typing one — and empties the room. Edit
-opens on the writing that just arrived rather than at the top of a document
-that has grown by three sections, and the new part is marked for a second so
-you can see which part is the new part. Writing that arrives with no heading
-over it becomes a section called *New section*, which is a placeholder rather
-than a guess dressed up as a title.
+because that is what a writer means by typing one — and empties the room. It
+is added, never substituted: nothing already in Edit is removed to make room
+for it, including the introduction this application ships with, which is ours
+to have written and yours to delete. Nothing here takes writing off the page
+on its own.
+
+Edit opens on the writing that just arrived rather than at the top of a
+document that has grown by three sections, and the new part is marked for a
+second so you can see which part is the new part. Writing that arrives with no
+heading over it becomes a section called *New section*, which is a placeholder
+rather than a guess dressed up as a title.
 
 Nothing is carried over on its own — but nothing is quietly left behind
 either. A dot sits on the Draft tab while there is writing still in the room,

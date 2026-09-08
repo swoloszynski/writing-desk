@@ -1312,7 +1312,9 @@ function takeDraftToEdit({ then = 'edit' } = {}) {
   const parts = draftToSections(text);
   if (!parts.length) { toast('Nothing drafted yet.'); return false; }
 
-  if (doc.sampleIntact) doc.sections = [];
+  // Added, never substituted. Whatever is in Edit was put there on purpose —
+  // including the introduction this application ships with, which is ours to
+  // have written and yours to delete. Nothing here removes writing on its own.
   const first = doc.sections.length;
 
   parts.forEach((part, i) => {
@@ -1325,7 +1327,6 @@ function takeDraftToEdit({ then = 'edit' } = {}) {
   });
 
   const arrivedId = doc.sections[first].id;
-  doc.sampleIntact = false;
   doc.draft = Doc.defaultDraft();
   draft.render();
   paintDraftMeter();
@@ -1509,7 +1510,6 @@ function adopt(next) {
   doc.sections = next.sections;
   doc.comments = next.comments ?? [];
   doc.draft = next.draft ?? Doc.defaultDraft();
-  doc.sampleIntact = !!next.sampleIntact;
   doc.stage = Doc.STAGES.has(next.stage) ? next.stage : 'edit';
   for (const key of Object.keys(doc.settings)) delete doc.settings[key];
   Object.assign(doc.settings, next.settings);
@@ -1738,7 +1738,6 @@ function enterReview(payload) {
     draft: Doc.defaultDraft(),
     comments: (payload.comments || []).map(Doc.normalizeComment),
     sections: sectionsFromOutside(payload.sections),
-    sampleIntact: false,
   });
 
   $('#review-banner').hidden = false;
@@ -2212,8 +2211,6 @@ async function boot() {
     'and it cannot carry pictures. The file can.';
 
   editor.addEventListener('change', e => schedule(e.detail));
-  // Typing anything at all means the sample text is no longer the sample.
-  flow.addEventListener('input', () => { doc.sampleIntact = false; }, { once: true });
   renderGalley();
   renderSectionLists();
   paintThreads();
