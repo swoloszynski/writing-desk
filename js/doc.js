@@ -253,6 +253,25 @@ export function setCurrentId(id) {
   try { localStorage.setItem(CURRENT_KEY, id); } catch {}
 }
 
+/**
+ * Whether the desk was the last thing you were looking at.
+ *
+ * Not a property of a document — you were not in one — so it sits beside the
+ * pointer rather than inside a record. The stage you were on is remembered per
+ * document, because that is a fact about the document.
+ */
+const AT_DESK_KEY = 'writing-desk/at-desk';
+
+export function atDesk() {
+  try { return localStorage.getItem(AT_DESK_KEY) === '1'; } catch { return false; }
+}
+export function setAtDesk(on) {
+  try {
+    if (on) localStorage.setItem(AT_DESK_KEY, '1');
+    else localStorage.removeItem(AT_DESK_KEY);
+  } catch {}
+}
+
 /** Strip the parts that are derived, and stamp the ones that are not. */
 function forStorage(doc) {
   return { ...doc, updatedAt: new Date().toISOString(), words: wordsIn(doc) };

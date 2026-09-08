@@ -2012,12 +2012,14 @@ function newSheet() {
 function showDesk() {
   editor.harvest();
   save({ now: true });
+  Doc.setAtDesk(true);
   document.body.classList.add('is-desk');
   $('#desk').hidden = false;
   paintDesk();
 }
 
 function hideDesk() {
+  Doc.setAtDesk(false);
   document.body.classList.remove('is-desk');
   $('#desk').hidden = true;
 }
@@ -2242,6 +2244,11 @@ async function boot() {
   window.addEventListener('beforeunload', persist);
 
   // A hook for poking at the internals from the console.
+  // Back where you were. A borrowed draft is the exception: somebody sent it
+  // to be read, and opening a cupboard of your own documents instead is not
+  // an answer to that.
+  if (Doc.atDesk() && !reviewing && !took) showDesk();
+
   window.desk = { doc, editor, draft, Doc, Notes, Share, paintDesk, showDesk,
                   get offsets() { return offsets; }, repaginate, importMarkdownText };
 }
