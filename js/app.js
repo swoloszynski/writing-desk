@@ -380,6 +380,7 @@ function paintNotesToggle() {
   $('#toggle-notes-label').textContent = on ? 'Hide Comments' : 'Show Comments';
   $('#toggle-notes').title = on ? 'Hide comments' : 'Show comments';
   $('#edit-notes').hidden = !on;
+  $('#edit-notes-grip').hidden = !on;
   marks.hidden = !notesShown();
 }
 
@@ -679,6 +680,85 @@ function jumpTo(id) {
   requestAnimationFrame(() => {
     marks.querySelector(`.wd-mark[data-comment="${id}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
+
+/**
+ * Dragging the notes rail wider.
+ *
+ * A width, not a document. It is remembered in this browser rather than in
+ * the piece, because how wide you like a panel is a fact about your screen —
+ * and a document that carried one would impose it on whoever you sent the
+ * piece to, on a monitor you have never seen.
+ */
+const NOTES_W_KEY = 'writing-desk/notes-width';
+
+function notesWidth(px) {
+  // Wide enough to read a quoted sentence, never so wide that the paper it is
+  // about stops being the thing on screen.
+  const max = Math.min(640, Math.round(innerWidth * 0.42));
+  return Math.max(240, Math.min(max, Math.round(px)));
+}
+
+function setNotesWidth(px, { remember = true } = {}) {
+  const w = notesWidth(px);
+  document.documentElement.style.setProperty('--notes-w', `${w}px`);
+  if (remember) { try { localStorage.setItem(NOTES_W_KEY, String(w)); } catch {} }
+  return w;
+}
+
+function bindNotesResize() {
+  let saved = null;
+  try { saved = localStorage.getItem(NOTES_W_KEY); } catch {}
+  if (saved) setNotesWidth(+saved, { remember: false });
+
+  for (const grip of $$('.rail-grip')) {
+    grip.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const rail = grip.nextElementSibling;
+      const startX = e.clientX;
+      const startW = rail.getBoundingClientRect().width;
+      grip.classList.add('is-dragging');
+      document.body.classList.add('is-dragging-rail');
+      // Capture keeps the drag alive when the pointer runs off the handle.
+      // It throws if the pointer has already gone, which must not take the
+      // drag with it.
+      try { grip.setPointerCapture(e.pointerId); } catch {}
+
+      // The rail is on the right, so dragging left makes it wider.
+      const move = ev => setNotesWidth(startW + (startX - ev.clientX), { remember: false });
+      const done = ev => {
+        setNotesWidth(startW + (startX - ev.clientX));
+        grip.classList.remove('is-dragging');
+        document.body.classList.remove('is-dragging-rail');
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', done);
+        grip.removeEventListener('pointercancel', done);
+        // The paper moved while the rail grew; the marks are drawn in
+        // absolute positions over it and have to be put back.
+        repaginate();
+        paintMarks();
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', done);
+      grip.addEventListener('pointercancel', done);
+    });
+
+    // A double-click puts it back, which is quicker than finding the width
+    // it used to be.
+    grip.addEventListener('dblclick', () => {
+      setNotesWidth(274);
+      repaginate();
+      paintMarks();
+    });
+  }
+
+  // A window that has been made narrower must not leave the rail wider than
+  // the rules above allow.
+  addEventListener('resize', () => {
+    const now = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--notes-w'), 10);
+    if (now) setNotesWidth(now, { remember: false });
   });
 }
 
@@ -2499,6 +2579,7 @@ async function boot() {
   bindDocumentActions();
   bindExportMode();
   bindCommentBar();
+  bindNotesResize();
   bindDraft();
   buildStatusPicker();
   paintNotesToggle();
