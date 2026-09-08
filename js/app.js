@@ -865,6 +865,9 @@ function applyView(next) {
   holdGalley(next);
   $$('.view').forEach(v => v.classList.toggle('is-on', v.id === `view-${next}`));
   $$('#tabs button').forEach(b => b.classList.toggle('is-on', b.dataset.view === next));
+  // The way out of the drafting room sits in the top bar, which every stage
+  // shares, so it only belongs on screen while you are in that room.
+  $('#draft-done').hidden = next !== 'draft';
   paintNotesToggle();
   if (next === 'format') paintPageGrid();
   if (next === 'save') paintSave();
