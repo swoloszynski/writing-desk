@@ -773,7 +773,51 @@ function renderGalley() {
   holdGalley(view);
 }
 
+/**
+ * A scale that puts `across` of something side by side in the room available.
+ *
+ * The sliders used to open at a number somebody typed into the markup, which
+ * was right on one screen and wrong on every other. Two pages side by side is
+ * the view worth opening on — enough to see a spread, and enough to see the
+ * shape of the type — so the number is worked out from the width there
+ * actually is.
+ */
+function fitScale(host, unitW, across) {
+  const wrap = host.parentElement;
+  const box = getComputedStyle(wrap);
+  // The scrollbar is not there yet. It appears once the pages are in, and it
+  // takes its width out of the room they were measured against — so leave it.
+  const inner = wrap.clientWidth - SCROLLBAR_SLACK
+    - parseFloat(box.paddingLeft) - parseFloat(box.paddingRight);
+  const gap = across > 1 ? 18 : 0;   // .pgrid column-gap
+  if (!(inner > 0)) return null;
+  return ((inner - gap * (across - 1)) / across) / unitW;
+}
+
+const SCROLLBAR_SLACK = 14;
+
+/** Sliders keep their opening value until somebody moves one. */
+const zoomTouched = { format: false, save: false };
+
+function applyDefaultZoom(which) {
+  if (zoomTouched[which]) return;
+  const m = Doc.metrics(doc.settings);
+  const slider = $(which === 'format' ? '#format-zoom' : '#save-zoom');
+  const host = $(which === 'format' ? '#page-grid' : '#save-preview');
+  // A sheet already carries two pages, so a booklet fits one of those across
+  // and an ordinary document fits two pages. Both come to the same width.
+  const press = which === 'save' && exportMode() === 'press';
+  const fit = fitScale(host, press ? m.sheetW : m.pageW, press ? 1 : 2);
+  if (fit === null) return;
+  // Down to the slider's own step, never up. A range input snaps whatever it
+  // is given, and snapping upwards is what turns two pages across into one.
+  const step = +slider.step || 0.01;
+  const snapped = Math.floor(fit / step) * step;
+  slider.value = String(Math.min(+slider.max, Math.max(+slider.min, snapped)));
+}
+
 function paintPageGrid() {
+  applyDefaultZoom('format');
   const scale = +$('#format-zoom').value;
   const host = $('#page-grid');
   host.textContent = '';
@@ -827,6 +871,7 @@ function paintExportMode() {
 
 function paintSave() {
   paintExportMode();
+  applyDefaultZoom('save');
   const scale = +$('#save-zoom').value;
   const host = $('#save-preview');
   const mode = exportMode();
@@ -1779,8 +1824,18 @@ async function boot() {
 
   $$('#tabs button').forEach(b =>
     b.addEventListener('click', () => switchView(b.dataset.view)));
-  $('#format-zoom').addEventListener('input', () => view === 'format' && paintPageGrid());
-  $('#save-zoom').addEventListener('input', () => view === 'save' && paintSave());
+  $('#format-zoom').addEventListener('input', () => {
+    zoomTouched.format = true;
+    if (view === 'format') paintPageGrid();
+  });
+  $('#save-zoom').addEventListener('input', () => {
+    zoomTouched.save = true;
+    if (view === 'save') paintSave();
+  });
+  addEventListener('resize', () => {
+    if (view === 'format') paintPageGrid();
+    if (view === 'save') paintSave();
+  });
   $('#export-pdf').addEventListener('click', exportPDF);
   $('#show-resolved').addEventListener('change', paintThreads);
 
