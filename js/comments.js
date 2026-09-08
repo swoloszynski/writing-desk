@@ -190,11 +190,52 @@ export function commentFromSelection(flow, { author = '' } = {}) {
     quote: sectionEl.textContent.slice(start, end),
     author: author || 'Anonymous',
     text: '',
+    // Absent on an ordinary note. On a suggestion it is the wording proposed
+    // in place of `quote` — plain text, because a passage is anchored by
+    // character offsets into the section's text and a replacement carrying
+    // its own markup could not be put back at one.
+    suggestion: null,
     createdAt: new Date().toISOString(),
     resolved: false,
     orphaned: false,
     replies: [],
   };
+}
+
+export const isSuggestion = c => typeof c.suggestion === 'string';
+
+/**
+ * Put a suggestion's wording in place of the passage it was written about.
+ *
+ * Done against the live section rather than its stored HTML, which is what
+ * makes it safe: the range comes from the same offsets the highlight is drawn
+ * from, so what is replaced is exactly what the reader saw struck through.
+ * The markup around the passage is untouched; markup *inside* it does not
+ * survive, because the replacement is text.
+ *
+ * The caller re-anchors first. A suggestion written on Tuesday about a
+ * sentence that moved on Wednesday still knows its words, and applying it at
+ * the offsets it was written with would drop it into the middle of another
+ * one.
+ */
+export function applySuggestion(sectionEl, c) {
+  if (!isSuggestion(c) || !sectionEl || c.orphaned) return false;
+  const range = rangeForOffsets(sectionEl, c.start, c.end);
+  if (!range) return false;
+
+  // Look before writing. Offsets are the fast answer and they are sometimes
+  // the wrong one — re-anchoring by flattened whitespace lands close rather
+  // than exact, and a comment carried in from a link was written against
+  // somebody else's copy of the piece. Everywhere else in this file being
+  // approximate costs a highlight a pixel; here it would rewrite whatever
+  // sentence happened to be sitting at those numbers. So the words under the
+  // range have to be the words the suggestion was written about.
+  const here = range.toString();
+  if (here !== c.quote && squash(here) !== squash(c.quote)) return false;
+
+  range.deleteContents();
+  if (c.suggestion) range.insertNode(document.createTextNode(c.suggestion));
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -263,9 +304,14 @@ export function merge(doc, incoming) {
     // rather than replaced. Resolving is the author's call and stays theirs.
     const seen = new Set(existing.replies.map(r => r.id));
     const fresh = (raw.replies || []).filter(r => !seen.has(r.id));
-    if (fresh.length || existing.text !== raw.text) updated++;
+    const newWording = typeof raw.suggestion === 'string'
+      && raw.suggestion !== existing.suggestion;
+    if (fresh.length || existing.text !== raw.text || newWording) updated++;
     existing.replies.push(...fresh);
     if (!existing.text && raw.text) existing.text = raw.text;
+    // A reader who turned a note into a suggestion, or reworded one, is
+    // saying the thing the round trip exists to carry.
+    if (newWording) existing.suggestion = raw.suggestion;
   }
 
   return { added, updated };

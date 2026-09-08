@@ -634,6 +634,26 @@ body.is-reviewing .sec{ cursor:pointer; }
 }
 .thread.is-orphaned .thread-quote{ border-left-color:var(--dimmer);
                                    text-decoration:line-through; }
+/* --- a suggested edit ----------------------------------------------------
+   The old wording and the new one, one above the other rather than run
+   together: a diff read left to right needs you to hold the whole sentence in
+   your head to see what actually changed. */
+
+.thread.is-suggestion{ border-left:2px solid var(--accent-line); }
+.thread-suggestion{
+  margin:7px 0 2px; font-size:13px; line-height:1.5;
+  border-radius:5px; overflow:hidden;
+}
+.thread-suggestion del, .thread-suggestion ins{
+  display:block; padding:5px 8px; text-decoration:none;
+}
+.thread-suggestion del{
+  color:var(--dim); background:rgba(255,255,255,.03);
+  text-decoration:line-through; text-decoration-color:rgba(255,255,255,.35);
+}
+.thread-suggestion ins{ color:var(--ink); background:var(--accent-soft); }
+.reply-box.is-wording{ font-family:var(--ui); }
+
 .thread-note{ font-size:14px; line-height:1.55; white-space:pre-wrap; }
 .thread-by{ display:flex; align-items:baseline; gap:8px; margin-bottom:4px;
             font-size:12.5px; color:var(--dimmer); }
