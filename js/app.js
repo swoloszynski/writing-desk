@@ -227,7 +227,13 @@ function sectionCard(s) {
     Doc.collectGarbage(doc);
   });
 
-  el.addEventListener('click', () => {
+  el.addEventListener('click', e => {
+    // A click on one of the card's own controls is not a click on the card.
+    // Without this, clicking into the name field selected the text and then
+    // lost it half a frame later: the click bubbled up here, and focusing the
+    // galley took the selection with it.
+    if (e.target.closest('input, button, select, label')) return;
+
     const target = flow.querySelector(`.wd-section[data-id="${s.id}"]`);
     if (!target) return;
     switchView('edit');
