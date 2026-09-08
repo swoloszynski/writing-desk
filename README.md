@@ -229,7 +229,7 @@ Opening a shared link puts the application into reading mode: the text is not
 editable, the stages that would change it are gone, and — this is the part
 worth being sure of — **nothing is written to the reader's storage**. Their own
 document is still sitting there untouched when they close the tab. There is
-exactly one route to `localStorage`, and in reading mode it does nothing.
+exactly one route to storage, and in reading mode it does nothing.
 
 ### How a note stays attached
 
@@ -375,10 +375,37 @@ writing.
 Pictures are filed under the document that uses them. That is what stops
 tidying up one document from deleting another one's photographs.
 
-That means clearing site data takes the lot. **Save a copy**, under Document in
-the Format rail and again under Save, writes the whole thing — pictures and
-comments included — to a single `.json` file you can keep somewhere else or
-open on another machine.
+### Keeping it out of reach of a tidy-up
+
+Storage a browser hands out is evictable by default: one short of disk clears
+it, Safari clears it for a site you have not opened in a week, and *clear
+cookies and site data* takes it deliberately. Three things push back, in
+ascending order of how much they help.
+
+The desk asks for persistent storage the first time you save. That is a
+request rather than a setting — Chrome decides silently on how much you seem
+to use the place, and Firefox asks you — but granted, it survives both kinds
+of eviction. It is asked on a save rather than at boot because the only thing
+on an unopened desk is an introduction nobody wrote, and a permission prompt
+about that is a question about nothing.
+
+Installing the desk is what makes that request succeed: a browser grants
+persistent storage to an application on the dock and refuses it to a site you
+passed through. It also brings a service worker that keeps a copy of the
+application, so the desk opens on a train.
+
+Neither changes what kind of thing browser storage is. So the desk can be
+pointed at **a folder on your disk**, from the strip above the piles. Every
+document on the shelf is then written into it as a `.json` file a few seconds
+after you stop typing — one you can see in the Finder, back up, and open on a
+machine that has never heard of this application. Choose a folder inside
+iCloud Drive or Dropbox and it is off the machine as well, with nothing else
+to set up. Deleting a document deletes its file too, which the confirmation
+says before you agree to it.
+
+The picker is Chromium-only for now; Safari and Firefox have not shipped one.
+There, and any time you want a copy by hand, **Save a copy** under Save writes
+the same `.json` — pictures and comments included.
 
 The stage you were last on is kept too, so reopening a document puts you back
 where you left it rather than at whichever stage happens to be second.
@@ -418,7 +445,10 @@ to be broken.
 | `js/pdf.js` | writing the pages, via a vendored pdf-lib |
 | `js/zip.js` | a stored-method zip, for when you want both orders at once |
 | `js/settings-ui.js` | the settings rail, built from a description |
+| `js/folder.js` | writing the shelf out to a folder on your disk |
 | `js/app.js` | wiring |
+| `sw.js` | the offline copy, and what makes the desk installable |
+| `manifest.webmanifest` | what the desk is called once it is on the dock |
 | `serve.py` | dev server that refuses to let the browser cache |
 
 ## Where it came from

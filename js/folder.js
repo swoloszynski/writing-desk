@@ -107,6 +107,32 @@ export async function forget() {
   return status();
 }
 
+/** The file a document is being written to, if it has one yet. */
+export const fileNameFor = docId => names[docId] || null;
+
+/**
+ * Delete the file a document was being written to.
+ *
+ * Called when the document itself is deleted, so that the folder stays a
+ * picture of the shelf rather than an attic. The mapping goes either way —
+ * a file that could not be removed is one nothing points at any more, and
+ * leaving the name behind would only make the next retitle try to delete a
+ * file belonging to a document that no longer exists.
+ */
+export async function remove(docId) {
+  const name = names[docId];
+  if (!name) return false;
+
+  let gone = false;
+  if (state === 'ready' && dir) {
+    try { await dir.removeEntry(name); gone = true; }
+    catch (err) { console.warn('could not remove the file', err); }
+  }
+  delete names[docId];
+  await remember();
+  return gone;
+}
+
 async function remember() {
   try { await Doc.putHandle(HANDLE_KEY, { dir, names }); } catch {}
 }

@@ -1572,31 +1572,32 @@ function paintFolder() {
   box.classList.toggle('is-on', state === 'ready');
 
   if (state === 'unsupported') {
-    label.textContent = 'On this machine only';
+    label.textContent = 'Saved in this browser only';
     note.textContent =
-      'This browser cannot write straight into a folder — Safari and Firefox ' +
-      'have no picker for it, Chrome and Edge do. Until then, Save · ' +
-      'Everything · .json is the same file, fetched by hand.';
+      "Right now, your writing is saved to your browser's storage. If you " +
+      'clear cookies or reset things, you might lose your work. To save your ' +
+      'work, switch to a browser like Arc or Chrome that allows you to save ' +
+      'your files to your local computer.';
   } else if (state === 'off') {
     pick.textContent = 'Choose a folder…';
-    label.textContent = 'On this machine only';
+    label.textContent = 'Saved in this browser only';
     note.textContent =
-      'Everything here lives inside this browser, which is a thing people ' +
-      'clear. Pick a folder and every document on the desk is also written ' +
-      'there as a file you can see in the Finder. Choose one inside iCloud ' +
-      'Drive or Dropbox and it is backed up and on your other machines too.';
+      "Right now, your writing is saved to your browser's storage. If you " +
+      'clear cookies or reset things, you might lose your work. To save your ' +
+      'work reliably, pick a folder on your local computer to store your ' +
+      "files. You'll be asked to allow write access to that folder. You can " +
+      'optionally pick a folder that is backed up via iCloud Drive or Dropbox.';
   } else if (state === 'blocked') {
     pick.textContent = `Reconnect “${name}”`;
-    label.textContent = 'Waiting to reconnect';
+    label.textContent = 'Reconnect your file folder';
     note.textContent =
-      `Still set to “${name}”, but a browser will not hand back write access ` +
-      'to a folder on its own after a reload. One click and it resumes.';
+      `Your files are still read from ${name}, but you need to re-allow the ` +
+      'browser app to write changes to the files.';
   } else {
     pick.textContent = 'Choose a different folder…';
-    label.textContent = 'Kept in a folder';
+    label.textContent = `Saved to this folder: ${name}`;
     note.textContent =
-      `Every document here is also written into “${name}”, a few seconds ` +
-      'after you stop typing.';
+      'Your work is saved every few seconds to your local file system.';
   }
 }
 
@@ -1625,8 +1626,8 @@ async function stopFolder() {
   const { name } = Folder.status();
   if (!await ask({
     title: 'Stop saving to the folder?',
-    body: `The files already in “${name}” stay where they are. This only stops ` +
-          'the desk adding to them.',
+    body: `The files already in “${name}” won't be changed. This stops the ` +
+          'app from editing or adding to them.',
     yes: 'Stop',
   })) return;
   await Folder.forget();
@@ -2008,7 +2009,7 @@ function sheetCard(d, { current = false } = {}) {
   peek.className = 'sheet-peek';
   const words = peekAt(d);
   if (words) peek.textContent = words;
-  else { peek.classList.add('is-empty'); peek.textContent = 'Nothing written yet.'; }
+  else { peek.classList.add('is-empty'); peek.textContent = 'Blank document.'; }
 
   const foot = document.createElement('div');
   foot.className = 'sheet-foot';
@@ -2060,9 +2061,9 @@ async function paintDesk() {
   host.textContent = '';
 
   const n = all.length;
-  $('#desk-sub').textContent = n === 0
-    ? 'Nothing on the desk yet.'
-    : `${n} document${n === 1 ? '' : 's'}, most recent first.`;
+  // Nothing to say once there is anything here: the piles are already the
+  // count, and labelled.
+  $('#desk-sub').textContent = n === 0 ? 'Grab some paper and start writing!' : '';
   $('#desk-close').hidden = n === 0;
   paintFolder();
 
@@ -2102,7 +2103,7 @@ function newSheet() {
   const el = document.createElement('div');
   el.className = 'sheet-card is-new';
   el.tabIndex = 0;
-  el.innerHTML = '<span>Start something new</span>';
+  el.innerHTML = '<span>New</span>';
   const make = () => makeDocument();
   el.addEventListener('click', make);
   el.addEventListener('keydown', e => {
@@ -2171,15 +2172,26 @@ async function setStatus(d, status) {
 }
 
 async function removeDocument(d) {
-  const n = d.words || 0;
+  // What happens to the copy in the folder, said before it happens. Only if
+  // there is one: a document made and thrown away in the same minute has
+  // never been written anywhere, and promising to delete a file that was
+  // never created is the kind of small lie that costs trust in the big ones.
+  const { state, name } = Folder.status();
+  const file = Folder.fileNameFor(d.id);
+  const alsoInFolder =
+    !file ? ''
+    : state === 'ready' ? ` Its file will also be removed from “${name}”.`
+    : ` Its file in “${name}” will stay there — the folder is not connected right now.`;
+
   if (!await ask({
     title: `Delete “${d.title || 'Untitled'}”?`,
-    body: `${n.toLocaleString()} word${n === 1 ? '' : 's'} and every picture in ` +
-          'it go with it. There is no undo, and nothing is kept anywhere else.',
+    body: `Are you sure you want to delete this document?${alsoInFolder} ` +
+          'There is no undo.',
     yes: 'Delete it', danger: true,
   })) return;
 
   await Doc.deleteDocument(d.id);
+  await Folder.remove(d.id);
 
   if (d.id === doc.id) {
     // The one that was open. Take out whichever is nearest to hand, or a
