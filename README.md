@@ -315,6 +315,17 @@ the web page export stands on its own.
 
 ---
 
+## Small screens
+
+Below about nine hundred pixels the application replaces itself with a line
+saying so. That is not a judgement about phones — a US Letter page is 816
+pixels wide before either rail is drawn, so there is no arrangement of this
+interface that works on one. The test covers both dimensions, because a phone
+held sideways is wide and short.
+
+It is done in the stylesheet rather than in script, so it is right before
+anything has loaded, and stays right if nothing ever does.
+
 ## Where your work lives
 
 In this browser. The text, the draft, the comments and every setting go to

@@ -676,3 +676,30 @@ body.is-reviewing .sec{ cursor:pointer; }
 
 @media (max-width:1280px){ :root{ --rail-w:238px; } }
 @media (max-width:980px){ .rail.right{ display:none; } }
+
+/* --- screens this does not fit on ---------------------------------------- */
+/*
+   Both dimensions are tested, because a phone held sideways is wide and
+   short. The width that matters is the paper's: a US Letter page is 816px
+   before either rail is drawn, so there is no arrangement of this interface
+   that works below about nine hundred.
+*/
+
+.too-small{ display:none; }
+
+@media (max-width:900px), (max-height:500px){
+  .app, .figbar, .popbar, .toast{ display:none !important; }
+
+  .too-small{
+    display:grid; place-items:center;
+    position:fixed; inset:0; z-index:200; padding:32px; text-align:center;
+    background:radial-gradient(120% 80% at 50% 0%, #1b1a22 0%, var(--bg) 60%);
+  }
+  .too-small .brand{
+    border-right:0; padding-right:0; margin-bottom:16px; font-size:13px;
+  }
+  .too-small p{
+    margin:0; max-width:20em;
+    font-size:17px; line-height:1.6; color:var(--dim);
+  }
+}
