@@ -1969,6 +1969,20 @@ async function startOver() {
   Doc.collectGarbage(doc);
 }
 
+/**
+ * Fold the comment stage's panel away, or bring it back.
+ *
+ * It starts folded for the person who wrote the document: the stage is for
+ * reading, and sending a draft out is not what you came here to do. A reader
+ * gets it open, because for them it holds the way to send the notes back.
+ */
+function setFold(folded) {
+  $('#comment-rail').classList.toggle('is-folded', folded);
+  const fold = $('#comment-fold');
+  fold.setAttribute('aria-expanded', String(!folded));
+  fold.title = folded ? 'Show the sharing panel' : 'Hide the sharing panel';
+}
+
 function bindDocumentActions() {
   const openFile = $('#open-file');
   const mdFile = $('#md-file');
@@ -2060,6 +2074,10 @@ function enterReview(payload) {
 
   $('#review-banner').hidden = false;
   $('#review-who').textContent = payload.author || 'Somebody';
+  // A reader's panel holds the way to send the notes back, which is the whole
+  // reason they are here. Folded away by default is right for the owner and
+  // wrong for them.
+  setFold(false);
   reload();
   requestAnimationFrame(() => requestAnimationFrame(repaginate));
 }
@@ -2527,6 +2545,10 @@ async function boot() {
 
   $('#who').value = Notes.whoAmI();
   $('#who').addEventListener('input', e => Notes.setWhoAmI(e.target.value.trim()));
+
+  $('#comment-fold').addEventListener('click', () => {
+    setFold(!$('#comment-rail').classList.contains('is-folded'));
+  });
 
   $$('#tabs button').forEach(b =>
     b.addEventListener('click', () => switchView(b.dataset.view)));

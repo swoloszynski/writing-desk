@@ -196,7 +196,7 @@
 
     <!-- ---------------------------------------------------------- COMMENT -->
     <section class="view" id="view-comment">
-      <aside class="rail left">
+      <aside class="rail left is-folded" id="comment-rail">
         <div class="wip owner-only">
           <span class="wip-mark" aria-hidden="true">🚧</span>
           <span>Sending a draft out and getting notes back is under
@@ -243,6 +243,14 @@
           </div>
         </div>
       </aside>
+
+      <!-- The fold sits on the seam between the panel and the stage, which is
+           the edge that actually moves. Inside the rail it would fold away
+           along with everything else and leave no way back. -->
+      <button class="rail-fold" id="comment-fold" aria-controls="comment-rail"
+              aria-expanded="false" title="Show the sharing panel">
+        <span class="rail-fold-arrow" aria-hidden="true"></span>
+      </button>
 
       <div class="stage">
         <div class="toolbar">

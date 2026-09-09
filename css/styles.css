@@ -478,6 +478,46 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .banner b{ color:var(--ink); }
 .banner .btn{ margin-left:auto; flex:0 0 auto; }
 
+/* A rail that folds flat against the edge of the stage. The width goes to
+   zero rather than the rail going display:none, so it slides rather than
+   blinking, and what is inside it keeps its scroll position. */
+.rail.is-folded{
+  width:0; flex:0 0 0; overflow:hidden; border-right-width:0;
+}
+.rail-fold{
+  position:relative; flex:0 0 19px; align-self:stretch; z-index:3;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--panel); border:0; border-right:1px solid var(--line);
+  color:var(--dim); cursor:pointer; padding:0;
+  /* The rail's own right border would double up with this one. */
+  margin-left:-1px;
+}
+/* A chip behind the arrow. On a strip this narrow an arrow on its own reads
+   as a mark in the seam rather than as something to press. */
+.rail-fold::before{
+  content:''; position:absolute; left:2px; right:2px; top:50%;
+  height:34px; margin-top:-17px;
+  background:var(--panel-2); border:1px solid var(--accent-edge);
+  border-radius:3px;
+}
+.rail-fold:hover{ color:var(--accent); }
+.rail-fold:hover::before{
+  background:var(--accent-soft); border-color:var(--accent-edge);
+}
+.rail-fold:focus-visible::before{ border-color:var(--accent); }
+.rail-fold:focus-visible{ outline:none; }
+.rail-fold-arrow{
+  position:relative; z-index:1;
+  width:7px; height:7px; border-right:2px solid currentColor;
+  border-bottom:2px solid currentColor;
+  transform:rotate(-45deg) translate(-1px,-1px);
+}
+/* Pointing the way it will move: out to the stage when open, back to the
+   edge when folded. */
+.rail-fold[aria-expanded="true"] .rail-fold-arrow{
+  transform:rotate(135deg) translate(-1px,-1px);
+}
+
 /* The filter sits at the head of the list it filters. */
 .rail-filter{ padding:0 13px 11px; border-bottom:1px solid var(--line-soft); }
 .rail-filter .seg{ width:100%; }
