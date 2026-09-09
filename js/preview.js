@@ -6,7 +6,7 @@
 // layout seen through a smaller hole. The PDF reads the same offsets.
 
 import { metrics, folioBaseline, PT_TO_PX } from './doc.js';
-import { marginsFor, impose } from './imposition.js';
+import { marginsFor, impose, bookletOrder } from './imposition.js';
 import { ascentOf } from './extract.js';
 
 /** A non-editable copy of the galley, safe to position freely. */
@@ -131,11 +131,17 @@ export function renderReadingOrder(flow, offsets, settings, scale) {
   return frag;
 }
 
-/** The sheets as they will be printed, front and back. */
-export function renderSheets(flow, offsets, settings, scale) {
+/**
+ * The sheets as they will be printed, front and back.
+ *
+ * @param backCoverFrom 1-based content page the pinned back cover starts on,
+ *   or null to leave the padding at the end of the booklet.
+ */
+export function renderSheets(flow, offsets, settings, scale, backCoverFrom = null) {
   const clone = cloneFlow(flow);
   const m = metrics(settings);
   const { sheets, padded } = impose(offsets.length);
+  const slots = bookletOrder(offsets.length, backCoverFrom);
   const frag = document.createDocumentFragment();
 
   sheets.forEach((sh, i) => {
@@ -158,10 +164,13 @@ export function renderSheets(flow, offsets, settings, scale) {
 
       sh[side].forEach((pageNo, half) => {
         const which = half === 0 ? 'left' : 'right';
-        const blank = pageNo > offsets.length;
-        const p = renderPage(clone, offsets[pageNo - 1] ?? 0, settings, pageNo,
+        // `pageNo` is a position in the folded booklet; what it shows is
+        // whatever content page the padding has left sitting there.
+        const content = slots[pageNo - 1] ?? 0;
+        const blank = content === 0;
+        const p = renderPage(clone, offsets[content - 1] ?? 0, settings, pageNo,
                              { side: which, blank, label: String(pageNo),
-                               height: pageHeight(offsets, pageNo - 1) });
+                               height: pageHeight(offsets, content - 1) });
         p.classList.add('wd-sheet-half', `is-${which}`);
         sheet.appendChild(p);
       });

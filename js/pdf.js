@@ -9,7 +9,7 @@
 import { PX_TO_PT, metrics, paperOf, getImage, folioBaseline } from './doc.js';
 import { faceFor, fontBytes } from './fonts.js';
 import { extract, itemsByPage } from './extract.js';
-import { pressOrder, marginsFor } from './imposition.js';
+import { pressOrder, marginsFor, bookletOrder } from './imposition.js';
 
 const { PDFDocument, rgb, degrees, setCharacterSpacing } = window.PDFLib;
 
@@ -166,7 +166,7 @@ const sameColour = (a, b) => a.r === b.r && a.g === b.g && a.b === b.b && a.a ==
  */
 export async function buildPDF({
   flow, settings, offsets, contentH, pageCount, title = '',
-  mode = 'reading', onProgress,
+  mode = 'reading', backCoverFrom = null, onProgress,
 }) {
   const m = metrics(settings);
   const paper = paperOf(settings);
@@ -203,7 +203,8 @@ export async function buildPDF({
 
   if (mode === 'press') {
     onProgress?.('imposing sheets');
-    ({ sheets, pdfPages } = layoutPress(pdf, perPage, pageCount, sheetW, sheetH, ctx));
+    ({ sheets, pdfPages } =
+      layoutPress(pdf, perPage, pageCount, sheetW, sheetH, backCoverFrom, ctx));
   } else {
     onProgress?.('laying out pages');
     pdfPages = layoutReading(pdf, perPage, pageCount, ctx);
@@ -218,9 +219,10 @@ export async function buildPDF({
  * The folded booklet: one PDF page per side of a sheet, two half pages on
  * each, in the order the sheets have to go through the printer.
  */
-function layoutPress(pdf, perPage, pageCount, sheetW, sheetH, ctx) {
+function layoutPress(pdf, perPage, pageCount, sheetW, sheetH, backCoverFrom, ctx) {
   const { settings, pageW } = ctx;
   const { faces } = pressOrder(pageCount);
+  const slots = bookletOrder(pageCount, backCoverFrom);
 
   for (const face of faces) {
     const sheet = pdf.addPage([sheetW, sheetH]);
@@ -234,8 +236,9 @@ function layoutPress(pdf, perPage, pageCount, sheetW, sheetH, ctx) {
     if (settings.press.cropMarks) drawCropMarks(sheet, sheetW, sheetH, pageW);
 
     ['left', 'right'].forEach((side, i) => {
-      placePage(sheet, face.pages[i], side === 'left' ? 0 : pageW, side,
-                sheetH, perPage, ctx);
+      const pos = face.pages[i];
+      placePage(sheet, pos, slots[pos - 1] ?? 0, side === 'left' ? 0 : pageW,
+                side, sheetH, perPage, ctx);
     });
 
     if (face.side === 'back' && settings.press.flipBack) sheet.setRotation(degrees(180));
@@ -259,20 +262,27 @@ function layoutReading(pdf, perPage, pageCount, ctx) {
 
   for (let pageNo = 1; pageNo <= pageCount; pageNo++) {
     const page = pdf.addPage([pageW, pageH]);
-    placePage(page, pageNo, 0, pageNo % 2 === 1 ? 'right' : 'left', pageH, perPage, ctx);
+    placePage(page, pageNo, pageNo, 0, pageNo % 2 === 1 ? 'right' : 'left',
+              pageH, perPage, ctx);
   }
 
   return pageCount;
 }
 
-/** One page, wherever on the sheet it happens to be landing. */
-function placePage(target, pageNo, X0, side, topY, perPage, ctx) {
+/**
+ * One page, wherever on the sheet it happens to be landing.
+ *
+ * `pageNo` is the position in the finished document — what the folio says —
+ * and `content` is the content page printed there, or 0 for a blank. The two
+ * part company once padding is added anywhere but the end.
+ */
+function placePage(target, pageNo, content, X0, side, topY, perPage, ctx) {
   const { m, folio, fonts, images, dropped, pageW, settings } = ctx;
   const mg = marginsFor(side, m);
-  const isBlank = pageNo - 1 >= perPage.length;
+  const isBlank = content < 1 || content - 1 >= perPage.length;
 
   if (!isBlank) {
-    drawPage(target, perPage[pageNo - 1] || [], { X0, topY, mg, m, fonts, images, dropped });
+    drawPage(target, perPage[content - 1] || [], { X0, topY, mg, m, fonts, images, dropped });
   }
   if (folio.on && shouldNumber(pageNo, isBlank, folio)) {
     drawFolio(target, pageNo,

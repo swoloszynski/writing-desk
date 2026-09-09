@@ -34,7 +34,7 @@ function sheetNote(settings) {
  * right. Calling the fold margin "left" on a page that has no fold is how
  * people put their text into the crease.
  */
-export function schemaFor(settings) {
+export function schemaFor(settings, sections = []) {
   const folded = isFolded(settings);
   return [
     {
@@ -43,6 +43,13 @@ export function schemaFor(settings) {
         { type: 'static', label: 'Size', value: sheetNote(settings) },
         { type: 'seg', path: 'press.layout', label: 'Print layout',
           options: [['reading', 'Reading order'], ['press', 'Print & fold']] },
+        // Only a folded booklet is padded out to whole sheets, so only a
+        // folded booklet has blanks that need somewhere to go.
+        ...(folded ? [
+          { type: 'select', path: 'press.backCover', label: 'Back cover',
+            options: [['', 'None'], ...sections.map(s => [s.id, s.name])] },
+          { type: 'hint', text: 'A section pinned as the back cover is held at the end of the document, and the blank pages that pad the booklet out to whole sheets are added in front of it rather than after it.' },
+        ] : []),
         { type: 'quad', label: 'Margins (inches)', fields: [
           { type: 'number', path: 'margins.top', label: 'Top', min: 0.15, max: 3, step: 0.05 },
           { type: 'number', path: 'margins.bottom', label: 'Bottom', min: 0.15, max: 3, step: 0.05 },

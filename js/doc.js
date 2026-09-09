@@ -87,8 +87,11 @@ export function defaultSettings() {
 
     // `layout` is how the pages sit on paper, which is a Format decision.
     // `bothZipped` is a choice made on the way out and lives in Save.
+    // `backCover` is the id of the section held at the back of the booklet,
+    // or '' for none: the blank pages that pad a booklet out to whole sheets
+    // then fall in front of it rather than after it.
     press: { flipBack: false, foldLine: true, cropMarks: false, spreadGap: true,
-             layout: 'reading', bothZipped: false },
+             layout: 'reading', bothZipped: false, backCover: '' },
 
     draft: { sound: false, focus: true, goal: 0, panel: false },
 

@@ -39,6 +39,32 @@ export function impose(pageCount) {
 }
 
 /**
+ * Which content page sits at each position in the finished booklet.
+ *
+ * Padding a booklet out to a whole number of sheets means adding blank pages,
+ * and normally they go on the end, where nobody minds them. A section pinned
+ * as the back cover changes that: the blanks go in front of it instead, so
+ * the pinned pages stay on the outside of the fold where a cover belongs and
+ * the padding falls inside, before it.
+ *
+ * @param {number} pageCount pages of content, before padding
+ * @param {number|null} backCoverFrom 1-based content page the back cover
+ *   starts on, or null to leave the blanks at the end
+ * @returns {number[]} `slots[i]` is the content page printed at booklet
+ *   position i + 1, or 0 where the position is a blank
+ */
+export function bookletOrder(pageCount, backCoverFrom = null) {
+  const n = Math.max(4, Math.ceil(pageCount / 4) * 4);
+  const slots = [];
+  for (let p = 1; p <= pageCount; p++) slots.push(p);
+
+  const at = backCoverFrom === null ? slots.length
+                                    : Math.min(Math.max(backCoverFrom - 1, 0), slots.length);
+  slots.splice(at, 0, ...Array(n - pageCount).fill(0));
+  return slots;
+}
+
+/**
  * The sheet faces in the order they must be sent to the printer: front of
  * sheet one, back of sheet one, front of sheet two, and so on. Duplex feeds
  * them off in pairs, so this order is what puts the right two pages back to

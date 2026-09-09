@@ -210,6 +210,29 @@ function sectionPageRange(id) {
   return [top, Math.max(top, pageOf(r.bottom - base - 1))];
 }
 
+/**
+ * The content page the pinned back cover starts on, or null.
+ *
+ * Null covers every case where the pin means nothing: no section pinned, a
+ * pin left behind by a section that has since been deleted, and paper that
+ * does not fold and so is never padded in the first place.
+ */
+function backCoverFrom() {
+  const id = doc.settings.press.backCover;
+  if (!id || !Doc.isFolded(doc.settings)) return null;
+  if (!doc.sections.some(s => s.id === id)) return null;
+  return sectionPageRange(id)?.[0] ?? null;
+}
+
+/** Hold the pinned back cover at the end, where a back cover has to be. */
+function holdBackCoverLast() {
+  const id = doc.settings.press.backCover;
+  if (!id) return;
+  const i = doc.sections.findIndex(s => s.id === id);
+  if (i < 0 || i === doc.sections.length - 1) return;
+  doc.sections.push(doc.sections.splice(i, 1)[0]);
+}
+
 function paintSectionPages() {
   for (const el of $$('.sec')) {
     const range = sectionPageRange(el.dataset.id);
@@ -242,6 +265,10 @@ function sectionCard(s, { where = 'edit' } = {}) {
   name.value = s.name;
   name.readOnly = reviewing;
   name.addEventListener('input', () => { s.name = name.value; save(); });
+  // The settings rail names the sections in its back-cover list. Rebuilding it
+  // on every keystroke would fight the field for focus, so it waits for the
+  // name to be finished with.
+  name.addEventListener('change', buildRail);
   name.addEventListener('pointerdown', () => { el.draggable = false; });
   name.addEventListener('blur', () => { el.draggable = !reviewing; });
 
@@ -267,11 +294,14 @@ function sectionCard(s, { where = 'edit' } = {}) {
     });
     if (!ok) return;
     doc.sections = doc.sections.filter(x => x.id !== s.id);
+    // A pin pointing at a section that is gone is not a back cover.
+    if (doc.settings.press.backCover === s.id) doc.settings.press.backCover = '';
     // Notes on a section that no longer exists have nothing to point at. They
     // are kept and marked, not deleted: somebody wrote them.
     doc.comments.forEach(c => { if (c.sectionId === s.id) c.orphaned = true; });
     renderGalley();
     renderSectionLists();
+    buildRail();
     paintThreads();
     Doc.collectGarbage(doc);
   });
@@ -321,6 +351,7 @@ function sectionCard(s, { where = 'edit' } = {}) {
     if (from < 0 || to < 0) return;
     const [moved] = doc.sections.splice(from, 1);
     doc.sections.splice(to, 0, moved);
+    holdBackCoverLast();
     renderGalley();
     renderSectionLists();
   });
@@ -348,9 +379,15 @@ function addSection() {
     startsNewPage: true,
     html: '<p><br></p>',
   };
-  doc.sections.push(s);
+  // A section added while a back cover is pinned belongs in front of it: the
+  // whole point of the pin is that nothing gets written after the cover.
+  const back = doc.settings.press.backCover;
+  const at = back ? doc.sections.findIndex(x => x.id === back) : -1;
+  if (at >= 0) doc.sections.splice(at, 0, s);
+  else doc.sections.push(s);
   renderGalley();
   renderSectionLists();
+  buildRail();
   editor.focusIn(flow.querySelector(`.wd-section[data-id="${s.id}"]`));
 }
 
@@ -1103,7 +1140,7 @@ function paintSave() {
   } else {
     host.className = 'sheets';
     host.style.gridTemplateColumns = '';
-    const { frag } = renderSheets(flow, offsets, doc.settings, scale);
+    const { frag } = renderSheets(flow, offsets, doc.settings, scale, backCoverFrom());
     host.appendChild(frag);
     $('#save-stage-label').textContent = 'Sheets';
     $('#save-stage-note').textContent = 'What comes out of the printer, before folding.';
@@ -1195,6 +1232,7 @@ async function exportPDF() {
     const common = {
       flow, settings: doc.settings, offsets, title: doc.title,
       contentH: m.contentH, pageCount: offsets.length,
+      backCoverFrom: backCoverFrom(),
     };
 
     const wanted = mode === 'both' ? ['press', 'reading'] : [mode];
@@ -2040,7 +2078,8 @@ function bindDocumentActions() {
 
 /** Rebuild the settings panel from scratch, and remember how to re-read it. */
 function buildRail() {
-  syncSettings = buildSettingsRail($('#settings-rail'), doc.settings, onSettingChange);
+  syncSettings = buildSettingsRail($('#settings-rail'), doc.settings, onSettingChange,
+                                   doc.sections);
 }
 
 function onSettingChange(field) {
@@ -2061,6 +2100,13 @@ function onSettingChange(field) {
   // Asking for folded sheets on paper that does not fold is a question about
   // the paper, so it is put as one rather than silently ignored.
   if (field?.path === 'press.layout') choosePrintLayout();
+  // Pinning a back cover moves it to the end, which changes the galley and so
+  // the section lists that number its pages.
+  if (field?.path === 'press.backCover') {
+    holdBackCoverLast();
+    renderGalley();
+    renderSectionLists();
+  }
   // Wait for the new rules to take effect before measuring against them.
   requestAnimationFrame(() => requestAnimationFrame(repaginate));
 }
