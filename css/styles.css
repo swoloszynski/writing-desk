@@ -478,6 +478,10 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .banner b{ color:var(--ink); }
 .banner .btn{ margin-left:auto; flex:0 0 auto; }
 
+/* The filter sits at the head of the list it filters. */
+.rail-filter{ padding:0 13px 11px; border-bottom:1px solid var(--line-soft); }
+.rail-filter .seg{ width:100%; }
+
 /* Reading somebody else's draft: the stages that would change it are gone. */
 .reader-only{ display:none; }
 body.is-reviewing .reader-only{ display:block; }

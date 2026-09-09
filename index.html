@@ -243,11 +243,6 @@
           <strong class="tlabel">Comment</strong>
           <span class="hint">Reading only. Select any passage to leave a note on it.</span>
           <div class="spacer"></div>
-          <div class="seg" id="comment-filter">
-            <button data-filter="open" class="is-on">Open</button>
-            <button data-filter="resolved">Resolved</button>
-            <button data-filter="all">All</button>
-          </div>
         </div>
 
         <!-- The galley moves in here while this stage is on. There is one
@@ -261,6 +256,15 @@
         <div class="rail-head">
           <span>Notes</span>
           <span class="hint" id="comment-count"></span>
+        </div>
+        <!-- The filter belongs to the list it filters, not to the page the
+             list is about. -->
+        <div class="rail-filter">
+          <div class="seg" id="comment-filter">
+            <button data-filter="open" class="is-on">Open</button>
+            <button data-filter="resolved">Resolved</button>
+            <button data-filter="all">All</button>
+          </div>
         </div>
         <div class="thread-list is-compact" id="thread-list"></div>
       </aside>
