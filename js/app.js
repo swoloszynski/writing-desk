@@ -1774,8 +1774,9 @@ function paintFolder() {
     pick.textContent = `Reconnect “${name}”`;
     label.textContent = 'Reconnect your file folder';
     note.textContent =
-      `Your files are still read from ${name}, but you need to re-allow the ` +
-      'browser app to write changes to the files.';
+      `Your files are still read from ${name}, but the browser app needs ` +
+      'permission again before it can write changes to them. Choosing the ' +
+      'folder again in the picker is what gives it.';
   } else {
     pick.textContent = 'Choose a different folder…';
     label.textContent = `Saved to this folder: ${name}`;

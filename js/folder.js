@@ -116,11 +116,45 @@ export async function choose() {
   return status();
 }
 
-/** Ask again for a folder already chosen. Must be called from a click. */
+/**
+ * Ask again for a folder already chosen. Must be called from a click.
+ *
+ * The obvious way to do this is requestPermission() on the handle we already
+ * have, and it is wrong. Chromium answers that with its restore prompt, and
+ * that prompt lists every folder this origin was ever given — including the
+ * one somebody changed away from months ago, which the browser goes on
+ * remembering and no page can make it forget. Offering to reopen a folder
+ * nobody asked about, at the moment they asked about a different one, reads
+ * as the desk having quietly kept it.
+ *
+ * So: open the picker on the folder we mean. It asks about that folder and no
+ * others, and picking it is itself the grant. Cancelling throws AbortError,
+ * which is a reader saying no and not a fault. If a different folder comes
+ * back they have changed their mind, which is choose() by another door — the
+ * marks belong to the old folder and go with it.
+ */
 export async function reconnect() {
   if (!dir) return status();
-  const granted = await dir.requestPermission({ mode: 'readwrite' });
+
+  const was = dir;
+  const picked = await window.showDirectoryPicker({
+    id: 'writing-desk',
+    mode: 'readwrite',
+    startIn: was,
+  });
+  let same = false;
+  try { same = await was.isSameEntry(picked); } catch {}
+
+  dir = picked;
+  if (!same) marks = {};
+  // Freshly picked, so this handle is not one of the dormant ones and asking
+  // again — should the pick alone not have carried write access — brings up
+  // the ordinary single-folder prompt.
+  let granted = await picked.queryPermission({ mode: 'readwrite' });
+  if (granted !== 'granted') granted = await picked.requestPermission({ mode: 'readwrite' });
   state = granted === 'granted' ? 'ready' : 'blocked';
+  lastError = '';
+  await remember();
   return status();
 }
 
