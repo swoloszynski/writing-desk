@@ -482,6 +482,16 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .rail-filter{ padding:0 13px 11px; border-bottom:1px solid var(--line-soft); }
 .rail-filter .seg{ width:100%; }
 
+/* A part of the application that is honestly not finished. Said plainly and
+   above the panel it applies to, so it is read before anything is clicked. */
+.wip{
+  display:flex; gap:9px; margin:0 13px 4px; padding:10px 12px;
+  border:1px solid rgba(255,196,84,.28); border-radius:3px;
+  background:rgba(255,196,84,.06);
+  font-size:12.5px; line-height:1.5; color:#c9b48c;
+}
+.wip-mark{ flex:0 0 auto; font-size:14px; line-height:1.35; }
+
 /* Reading somebody else's draft: the stages that would change it are gone. */
 .reader-only{ display:none; }
 body.is-reviewing .reader-only{ display:block; }
