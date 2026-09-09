@@ -85,8 +85,10 @@ export function defaultSettings() {
     folio: { on: true, position: 'bottom-center', font: 'Inter', size: 9,
              startAt: 1, hideOnFirst: true, hideOnBlank: true, format: '#' },
 
+    // `layout` is how the pages sit on paper, which is a Format decision.
+    // `bothZipped` is a choice made on the way out and lives in Save.
     press: { flipBack: false, foldLine: true, cropMarks: false, spreadGap: true,
-             exportMode: 'reading' },
+             layout: 'reading', bothZipped: false },
 
     draft: { sound: false, focus: true, goal: 0, panel: false },
 
@@ -217,6 +219,29 @@ export function normalizeComment(c) {
   };
 }
 
+/**
+ * Settle the print settings of a document coming in off the shelf or a file.
+ *
+ * `press.exportMode` held two decisions in one field: which layout, and
+ * whether to write the other one alongside it. The layout is a property of
+ * the document and now lives in Format; the zip is a choice made on the way
+ * out and stays in Save. Documents saved before the split carry the old key.
+ *
+ * The fold is settled here too. Only folded paper has a folded layout, and
+ * the layout is on screen in Format now — so a document that arrives claiming
+ * one on paper that does not fold has to be corrected on the way in, not
+ * left for the first paper change to notice.
+ */
+function normalizePress(settings) {
+  const old = settings.press?.exportMode;
+  if (old) {
+    settings.press.layout = old === 'reading' ? 'reading' : 'press';
+    settings.press.bothZipped = old === 'both';
+    delete settings.press.exportMode;
+  }
+  if (!isFolded(settings)) settings.press.layout = 'reading';
+}
+
 /** Take a plain object apart into a document, filling in anything missing. */
 export function adoptShape(saved) {
   const doc = blankDoc();
@@ -227,6 +252,7 @@ export function adoptShape(saved) {
   doc.title = saved.title ?? doc.title;
   doc.author = saved.author ?? doc.author;
   doc.settings = merge(defaultSettings(), saved.settings);
+  normalizePress(doc.settings);
   doc.draft = { ...defaultDraft(), ...(saved.draft || {}) };
   doc.comments = Array.isArray(saved.comments) ? saved.comments.map(normalizeComment) : [];
   doc.stage = STAGES.has(saved.stage) ? saved.stage : doc.stage;

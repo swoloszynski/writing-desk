@@ -1063,24 +1063,24 @@ const EXPORT_MODES = {
 };
 
 function exportMode() {
-  const wanted = doc.settings.press.exportMode;
   // Imposition is a property of folded paper. On anything else the only
-  // honest answer is one page at a time, whatever the setting last said.
+  // honest answer is one page at a time, whatever the settings last said.
   if (!Doc.isFolded(doc.settings)) return 'reading';
-  return EXPORT_MODES[wanted] ? wanted : 'reading';
+  if (doc.settings.press.bothZipped) return 'both';
+  return doc.settings.press.layout === 'press' ? 'press' : 'reading';
 }
 
 function paintExportMode() {
   const folded = Doc.isFolded(doc.settings);
   const mode = exportMode();
-  // Both orders are always on offer, because "can I print this as a folded
-  // booklet" is a question about the document, not about a setting you are
-  // expected to have found first. Choosing one on paper that does not fold
-  // asks to change the paper; see chooseExportMode.
+  // Writing both at once only means anything on paper that folds: on anything
+  // else the two layouts are the same document twice. The layout itself is
+  // chosen in Format, which is also where paper that does not fold is fixed.
   $('#press-head').hidden = !folded;
   $('#press-fields').hidden = !folded;
   $('#press-hint').hidden = !folded;
-  $$('#export-mode button').forEach(b => b.classList.toggle('is-on', b.dataset.mode === mode));
+  $('#export-both-field').hidden = !folded;
+  $('#export-both').checked = folded && !!doc.settings.press.bothZipped;
   $('#export-note').textContent = EXPORT_MODES[mode].note;
   $('#export-pdf').textContent = EXPORT_MODES[mode].label;
 }
@@ -1142,29 +1142,32 @@ const FOLDS_INTO = {
  * something the PDF will not contain. Rather than hide the option until the
  * paper happens to be right, it is offered and it says what it costs.
  */
-async function chooseExportMode(mode) {
-  if ((mode === 'press' || mode === 'both') && !Doc.isFolded(doc.settings)) {
-    const target = FOLDS_INTO[doc.settings.paper] || 'zine-letter';
-    const ok = await ask({
-      title: 'A booklet is set in half pages',
-      body: `Folding a sheet in half makes two pages out of it, so the paper has to ` +
-            `be ${Doc.PAPER[target].name} for the text to be laid out at the size it ` +
-            `will actually print. Your margins and type settings are kept — the text ` +
-            `reflows and the page count changes. You can switch back in Format.`,
-      yes: 'Switch the paper',
-    });
-    if (!ok) return;
-    doc.settings.paper = target;
-    onSettingChange({ path: 'paper' });
-  }
-  doc.settings.press.exportMode = mode;
-  save();
-  paintSave();
+async function choosePrintLayout() {
+  if (doc.settings.press.layout !== 'press' || Doc.isFolded(doc.settings)) return;
+
+  const target = FOLDS_INTO[doc.settings.paper] || 'zine-letter';
+  const ok = await ask({
+    title: 'A booklet is set in half pages',
+    body: `Folding a sheet in half makes two pages out of it, so the paper has to ` +
+          `be ${Doc.PAPER[target].name} for the text to be laid out at the size it ` +
+          `will actually print. Your margins and type settings are kept — the text ` +
+          `reflows and the page count changes. You can switch back at any time.`,
+    yes: 'Switch the paper',
+  });
+
+  // Declining leaves the paper alone, so the layout has to go back with it:
+  // the alternative is a rail claiming an imposition the document cannot have.
+  if (!ok) doc.settings.press.layout = 'reading';
+  else doc.settings.paper = target;
+  onSettingChange({ path: 'paper' });
 }
 
 function bindExportMode() {
-  $$('#export-mode button').forEach(b =>
-    b.addEventListener('click', () => chooseExportMode(b.dataset.mode)));
+  $('#export-both').addEventListener('change', e => {
+    doc.settings.press.bothZipped = e.target.checked;
+    save();
+    paintSave();
+  });
 }
 
 const slug = () => (doc.title || 'document').trim().toLowerCase()
@@ -2046,8 +2049,18 @@ function onSettingChange(field) {
   layoutPaper();
   save();
   // The paper decides what two of the margin controls are called, so changing
-  // it has to rebuild the panel that names them.
-  if (field?.path === 'paper') { buildRail(); paintExportMode(); }
+  // it has to rebuild the panel that names them. It also decides whether there
+  // is a fold at all: paper that does not fold takes the folded layout back
+  // with it, because a rail reading "Print & fold" beside paper that cannot be
+  // folded is simply wrong.
+  if (field?.path === 'paper') {
+    if (!Doc.isFolded(doc.settings)) doc.settings.press.layout = 'reading';
+    buildRail();
+    paintExportMode();
+  }
+  // Asking for folded sheets on paper that does not fold is a question about
+  // the paper, so it is put as one rather than silently ignored.
+  if (field?.path === 'press.layout') choosePrintLayout();
   // Wait for the new rules to take effect before measuring against them.
   requestAnimationFrame(() => requestAnimationFrame(repaginate));
 }

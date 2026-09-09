@@ -41,6 +41,8 @@ export function schemaFor(settings) {
       title: 'Page', open: true, fields: [
         { type: 'select', path: 'paper', label: 'Paper', options: paperOptions },
         { type: 'static', label: 'Size', value: sheetNote(settings) },
+        { type: 'seg', path: 'press.layout', label: 'Print layout',
+          options: [['reading', 'Reading order'], ['press', 'Print & fold']] },
         { type: 'quad', label: 'Margins (inches)', fields: [
           { type: 'number', path: 'margins.top', label: 'Top', min: 0.15, max: 3, step: 0.05 },
           { type: 'number', path: 'margins.bottom', label: 'Bottom', min: 0.15, max: 3, step: 0.05 },

@@ -328,13 +328,9 @@
       <aside class="rail left">
         <div class="rail-head"><span>Export</span></div>
         <div class="export-box">
-          <div class="field stack" id="export-mode-field">
-            <label for="export-mode">What to write</label>
-            <div class="seg vertical" id="export-mode">
-              <button data-mode="reading" class="is-on">PDF · reading order</button>
-              <button data-mode="press" id="mode-press">PDF · print &amp; fold order</button>
-              <button data-mode="both" id="mode-both">PDF · both, zipped</button>
-            </div>
+          <div class="field" id="export-both-field">
+            <label for="export-both">Both layouts, zipped</label>
+            <input type="checkbox" id="export-both">
           </div>
           <div class="hint" id="export-note"></div>
           <button class="btn primary" id="export-pdf">Export PDF</button>
