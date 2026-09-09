@@ -392,7 +392,13 @@ let orphanSignature = '';
 function paintMarks() {
   reanchorAll();
   marks.hidden = !notesShown();
-  Notes.paintHighlights(flow, marks, doc.comments, { activeId: activeComment });
+  // A hidden layer has no box at all, and the marks are placed against that
+  // box. Painting into it puts every highlight at its raw position on screen
+  // instead — half a page off to the side, which is what you saw the moment
+  // the layer was shown again. There is nothing to see while it is hidden, so
+  // the work waits until there is.
+  if (marks.hidden) marks.textContent = '';
+  else Notes.paintHighlights(flow, marks, doc.comments, { activeId: activeComment });
 
   const now = doc.comments.filter(c => c.orphaned).map(c => c.id).join(',');
   if (now !== orphanSignature) {
@@ -871,7 +877,10 @@ function applyView(next) {
   paintNotesToggle();
   if (next === 'format') paintPageGrid();
   if (next === 'save') paintSave();
-  if (next === 'comment') paintThreads();
+  // The marks are cleared while they cannot be seen, so the stage that shows
+  // them has to ask for them back. Painting here rather than on the way out
+  // means measuring the galley where it has actually landed.
+  if (next === 'comment') { paintMarks(); paintThreads(); }
   if (next === 'draft') requestAnimationFrame(() => draft.focus());
   if (next !== 'edit' && next !== 'comment') $('#commentbar').classList.remove('is-on');
 }
