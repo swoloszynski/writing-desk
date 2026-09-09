@@ -1898,117 +1898,117 @@ async function saveCopy() {
   toast('Saved a copy. Keep it somewhere other than this browser.');
 }
 
-async function openCopy(file) {
+/**
+ * Bring a file in as a document of its own.
+ *
+ * This used to sit in the Save stage next to the exports, where it could only
+ * mean "open this instead of what is in front of you" — in a stage there is
+ * always something in front of you, and the file had nowhere else to go. On
+ * the desk it has somewhere to go. A file arriving at a shelf is a document
+ * being added to the shelf, so an import writes a new sheet, opens it, and
+ * leaves everything already on the desk where it was.
+ *
+ * One button for both kinds, because from where the reader is standing a
+ * .json and a .md are both "the thing somebody sent me".
+ */
+async function importFile(file) {
   try {
-    const parsed = JSON.parse(await file.text());
-
-    // The same button opens both kinds of file, because from where you are
-    // standing they are both "the thing somebody sent me".
-    if (parsed?.kind === 'notes') return applyNotes(JSON.stringify(parsed));
-    if (parsed?.kind === 'read') {
-      Share.checkPayload(parsed, 'read');
-      if (!await ask({
-        title: `Read “${parsed.title}”?`,
-        body: 'This replaces what is on screen. Your own document stays saved in ' +
-              'this browser and comes back when you reload.',
-        yes: 'Open it',
-      })) return;
-      await Doc.unpackImages(parsed.images);
-      enterReview(parsed);
-      return;
-    }
-
-    const restored = await Doc.deserialize(parsed);
-    restored.sections = sectionsFromOutside(restored.sections);
-    if (!await ask({
-      title: `Open “${restored.title}”?`,
-      body: 'This replaces what is open now. Save a copy first if you have not.',
-      yes: 'Open it', danger: true,
-    })) return;
-    adopt(restored);
-    reload();
-    Doc.collectGarbage(doc);
-    toast(`Opened “${doc.title}”.`);
+    const text = await file.text();
+    const looksJSON = /\.json$/i.test(file.name) || text.trimStart().startsWith('{');
+    if (looksJSON) await importBundle(JSON.parse(text));
+    else await importMarkdownText(text, { name: file.name });
   } catch (err) {
     console.error(err);
     toast(err.message || 'That file could not be opened.', true);
   }
 }
 
-/**
- * Read markdown into the document, replacing what is open.
- *
- * Settings are deliberately left alone: markdown says nothing about margins or
- * type, so the sensible reading of a file that is silent on them is that they
- * do not change, rather than that they should snap back to the defaults.
- */
-async function importMarkdownText(text, { name = 'Markdown', confirmFirst = true } = {}) {
-  const parsed = fromMarkdown(text);
-  const title = parsed.title || name.replace(/\.(md|markdown|txt)$/i, '') || doc.title;
-
-  if (confirmFirst && !await ask({
-    title: `Open “${title}”?`,
-    body: 'This replaces what is open now. Save a copy first if you have not.',
-    yes: 'Open it', danger: true,
-  })) {
-    return false;
+async function importBundle(parsed) {
+  // Notes are not a document. They are remarks about one, and they mean
+  // something only merged into the piece they were written on. The desk
+  // cannot tell which piece that is, and quietly filing a reader's notes
+  // against whatever happened to be open last is worse than not taking them.
+  if (parsed?.kind === 'notes') {
+    return toast('Those are notes on a document. Open the document they are ' +
+                 'about, go to Comment, and add them there.', true);
   }
 
+  // Somebody else's draft, sent to be read. Nothing to file: reading one is
+  // deliberately an act that leaves no trace on this desk.
+  if (parsed?.kind === 'read') {
+    Share.checkPayload(parsed, 'read');
+    if (!await ask({
+      title: `Read “${parsed.title}”?`,
+      body: 'This replaces what is on screen. Your own documents stay on the ' +
+            'desk and come back when you reload.',
+      yes: 'Open it',
+    })) return;
+    await Doc.unpackImages(parsed.images);
+    hideDesk();
+    enterReview(parsed);
+    return;
+  }
+
+  const restored = await Doc.deserialize(parsed);
+  restored.sections = sectionsFromOutside(restored.sections);
+
+  // A copy of something already on the shelf keeps its words and gives up its
+  // identity. Two documents cannot share an id — the one already here is the
+  // one the folder is writing to, and letting the import take that place would
+  // be an import that deletes a document.
+  if (await Doc.readDocument(restored.id)) {
+    restored.id = Doc.newDocument().id;
+    restored.title = `${restored.title || 'Untitled'} (imported)`;
+  }
+
+  await takeOut(restored);
+  toast(`Brought in “${doc.title}”.`);
+}
+
+/**
+ * Markdown as a document of its own.
+ *
+ * The type is left at the defaults rather than copied from whatever was open,
+ * because markdown says nothing about margins or type and a new sheet is
+ * exactly where the defaults are the right answer.
+ */
+async function importMarkdownText(text, { name = 'Markdown' } = {}) {
+  const parsed = fromMarkdown(text);
+  const fresh = Doc.newDocument();
+  fresh.title = parsed.title || name.replace(/\.(md|markdown|txt)$/i, '') || fresh.title;
+  fresh.sections = parsed.sections.map(section => ({
+    id: Doc.uid('s'),
+    name: section.name,
+    startsNewPage: section.startsNewPage,
+    html: sanitize(section.html),
+  }));
+
   const referenced = (text.match(/!\[[^\]]*\]\([^)]*\)/g) || []).length;
-
-  adopt({
-    version: doc.version,
-    title,
-    author: doc.author,
-    // Settings are not in the file, so carry the current ones across. They
-    // have to be a snapshot: adopt() empties the live object before refilling
-    // it, and handing it its own contents would leave nothing behind.
-    settings: JSON.parse(JSON.stringify(doc.settings)),
-    draft: doc.draft,
-    comments: [],
-    sections: parsed.sections.map(section => ({
-      id: Doc.uid('s'),
-      name: section.name,
-      startsNewPage: section.startsNewPage,
-      html: sanitize(section.html),
-    })),
-  });
-
-  const kept = doc.sections.reduce(
+  const kept = fresh.sections.reduce(
     (n, section) => n + (section.html.match(/data-zimg/g) || []).length, 0);
 
-  reload();
-  Doc.collectGarbage(doc);
+  await takeOut(fresh);
 
   const lost = Math.max(0, referenced - kept);
   toast(lost
-    ? `Opened “${title}”. ${lost} picture${lost === 1 ? '' : 's'} could not be found — ` +
-      'markdown carries the reference, not the bytes.'
-    : `Opened “${title}”.`);
+    ? `Brought in “${doc.title}”. ${lost} picture${lost === 1 ? '' : 's'} could not be ` +
+      'found — markdown carries the reference, not the bytes.'
+    : `Brought in “${doc.title}”.`);
   return true;
 }
 
-async function importMarkdownFile(file) {
-  try {
-    importMarkdownText(await file.text(), { name: file.name });
-  } catch (err) {
-    console.error(err);
-    toast(err.message || 'That file could not be read.', true);
-  }
-}
-
-async function startOver() {
-  if (!await ask({
-    title: `Empty “${doc.title}” and start again?`,
-    body: 'The writing, the draft, the comments and the settings of this ' +
-          'document all go. Your other documents are not touched. There is no ' +
-          'undo.',
-    yes: 'Throw it away', danger: true,
-  })) return;
-  const fresh = Doc.newDocument({ title: doc.title });
-  fresh.id = doc.id;          // the same sheet of paper, wiped
+/** Put a document that has just arrived on the shelf, and take it out. */
+async function takeOut(fresh) {
+  editor.harvest();
+  save({ now: true });
+  await Doc.writeDocument(fresh);
+  Doc.setCurrentId(fresh.id);
   adopt(fresh);
   reload();
+  hideDesk();
+  await loadAllFonts();
+  clearMetricCache();
+  repaginate();
   Doc.collectGarbage(doc);
 }
 
@@ -2040,28 +2040,21 @@ function paintSigning() {
 }
 
 function bindDocumentActions() {
-  const openFile = $('#open-file');
-  const mdFile = $('#md-file');
+  const importFileInput = $('#import-file');
   const notesFile = $('#notes-file');
 
   document.addEventListener('click', e => {
     const action = e.target.closest('[data-action]')?.dataset.action;
     if (action === 'save-copy') saveCopy();
-    else if (action === 'open-copy') openFile.click();
     else if (action === 'export-md') exportMarkdown();
     else if (action === 'export-txt') exportText();
     else if (action === 'export-html') exportHTML();
-    else if (action === 'import-md') mdFile.click();
-    else if (action === 'start-over') startOver();
   });
 
-  openFile.addEventListener('change', () => {
-    if (openFile.files[0]) openCopy(openFile.files[0]);
-    openFile.value = '';
-  });
-  mdFile.addEventListener('change', () => {
-    if (mdFile.files[0]) importMarkdownFile(mdFile.files[0]);
-    mdFile.value = '';
+  $('#desk-import').addEventListener('click', () => importFileInput.click());
+  importFileInput.addEventListener('change', () => {
+    if (importFileInput.files[0]) importFile(importFileInput.files[0]);
+    importFileInput.value = '';
   });
   notesFile.addEventListener('change', async () => {
     if (notesFile.files[0]) applyNotes(await notesFile.files[0].text());
@@ -2372,7 +2365,6 @@ async function paintDesk() {
   // Nothing to say once there is anything here: the piles are already the
   // count, and labelled.
   $('#desk-sub').textContent = n === 0 ? 'Grab some paper and start writing!' : '';
-  $('#desk-close').hidden = n === 0;
   paintFolder();
 
   for (const status of Doc.STATUSES) {
@@ -2611,7 +2603,6 @@ async function boot() {
   installMarkdownInput(editor);
 
   $('#to-desk').addEventListener('click', showDesk);
-  $('#desk-close').addEventListener('click', hideDesk);
   $('#desk-new').addEventListener('click', makeDocument);
   addEventListener('keydown', e => {
     if (e.key === 'Escape' && !$('#desk').hidden) hideDesk();

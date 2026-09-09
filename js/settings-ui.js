@@ -114,19 +114,6 @@ export function schemaFor(settings, sections = []) {
   ];
 }
 
-/** The document group, appended last: actions rather than measurements. */
-export const DOC_SCHEMA = [
-  { type: 'action', id: 'save-copy', text: 'Save a copy  ·  .json' },
-  { type: 'action', id: 'open-copy', text: 'Open a copy…' },
-  { type: 'hint', text: 'The complete one. Words, pictures, comments and every setting, in a single file. Your work lives in this browser and nowhere else, so this is how it survives a cleared cache or moves to another machine.' },
-
-  { type: 'action', id: 'export-md', text: 'Export Markdown  ·  .md' },
-  { type: 'action', id: 'import-md', text: 'Import Markdown…' },
-  { type: 'hint', text: 'The portable one. Prose and structure, in a file any editor can open — but markdown has nowhere to put a picture or a typeface, so those do not travel with it.' },
-
-  { type: 'action', id: 'start-over', text: 'Start over', danger: true },
-];
-
 /** Options for the press pane, which lives in the Save view instead. */
 export const PRESS_SCHEMA = [
   { type: 'check', path: 'press.foldLine', label: 'Fold line' },
@@ -163,17 +150,6 @@ function control(field, settings, onChange) {
     v.textContent = field.value;
     wrap.appendChild(v);
     return wrap;
-  }
-
-  if (field.type === 'action') {
-    // One full-width button that says what it does. A separate label beside it
-    // only fought the button for room and lost, wrapping "Start over" onto two
-    // lines against a button too wide for the rail.
-    const b = document.createElement('button');
-    b.className = `btn action${field.danger ? ' danger' : ''}`;
-    b.textContent = field.text;
-    b.dataset.action = field.id;
-    return b;
   }
 
   if (field.type === 'quad') {
@@ -276,14 +252,10 @@ export function buildFields(host, fields, settings, onChange) {
   return () => syncs.forEach(fn => fn());
 }
 
-export function buildSettingsRail(host, settings, onChange) {
+export function buildSettingsRail(host, settings, onChange, sections = []) {
   host.textContent = '';
   const syncs = [];
-  const groups = [
-    ...schemaFor(settings),
-    { title: 'Document', open: false, fields: DOC_SCHEMA },
-  ];
-  for (const group of groups) {
+  for (const group of schemaFor(settings, sections)) {
     const d = document.createElement('details');
     d.className = 'group';
     d.open = group.open;
