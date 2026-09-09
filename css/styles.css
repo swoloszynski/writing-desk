@@ -359,7 +359,10 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 
 /* --- page previews ------------------------------------------------------- */
 
-.grid-wrap{ flex:1; min-width:0; overflow-y:auto; padding:26px 30px 120px; }
+/* The gutter is held open whether or not the scrollbar is there yet, so the
+   width the zoom is measured against is the width the pages actually get. */
+.grid-wrap{ flex:1; min-width:0; overflow-y:auto; scrollbar-gutter:stable;
+            padding:26px 30px 120px; }
 
 .wd-page{
   position:relative; background:var(--paper); overflow:hidden;

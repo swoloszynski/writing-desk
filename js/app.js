@@ -960,7 +960,26 @@ function applyDefaultZoom(which) {
   slider.value = String(Math.min(+slider.max, Math.max(+slider.min, snapped)));
 }
 
+/**
+ * Put the zoom slider's ceiling at one page filling the width of the stage.
+ *
+ * A fixed maximum is a guess about the size of somebody's screen, and on a
+ * wide one it stopped well short of a page big enough to read — which is the
+ * zoom level people actually reach for. The far right of the slider is now
+ * that page, whatever the screen and whatever the paper.
+ */
+function setZoomCeiling() {
+  const slider = $('#format-zoom');
+  const fit = fitScale($('#page-grid'), Doc.metrics(doc.settings).pageW, 1);
+  if (fit === null) return;
+  const step = +slider.step || 0.01;
+  slider.max = String(Math.max(+slider.min + step, Math.floor(fit / step) * step));
+  // A narrower window can put the ceiling below where the slider was left.
+  if (+slider.value > +slider.max) slider.value = slider.max;
+}
+
 function paintPageGrid() {
+  setZoomCeiling();
   applyDefaultZoom('format');
   const scale = +$('#format-zoom').value;
   const host = $('#page-grid');
