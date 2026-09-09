@@ -719,7 +719,8 @@ function bindCommentBar() {
         yes: 'Save', input: true, placeholder: 'Your name',
       });
       if (name) Notes.setWhoAmI(name);
-      $('#who').value = Notes.whoAmI();
+      $('#who').textContent = Notes.whoAmI();
+      paintSigning();
       c.author = Notes.whoAmI() || 'Anonymous';
     }
     doc.comments.push(c);
@@ -1983,6 +1984,19 @@ function setFold(folded) {
   fold.title = folded ? 'Show the sharing panel' : 'Hide the sharing panel';
 }
 
+/**
+ * Say back who the notes will be signed by.
+ *
+ * The name itself is the heading on the desk and needs no painting — it is
+ * the field. This is the other end of it: a note going out under the wrong
+ * name, or under none, is only ever noticed after it has been sent.
+ */
+function paintSigning() {
+  const name = Notes.whoAmI();
+  $('#signing-as').textContent = name || 'nobody yet';
+  $('#signing').classList.toggle('is-unset', !name);
+}
+
 function bindDocumentActions() {
   const openFile = $('#open-file');
   const mdFile = $('#md-file');
@@ -2543,8 +2557,32 @@ async function boot() {
     if (e.key === 'Escape' && !$('#desk').hidden) hideDesk();
   });
 
-  $('#who').value = Notes.whoAmI();
-  $('#who').addEventListener('input', e => Notes.setWhoAmI(e.target.value.trim()));
+  const who = $('#who');
+  who.textContent = Notes.whoAmI();
+  who.addEventListener('input', () => {
+    // A heading is one line. Anything pasted in with newlines in it becomes
+    // spaces rather than a title that grows a second row.
+    const flat = who.textContent.replace(/\s+/g, ' ');
+    if (flat !== who.textContent) who.textContent = flat;
+    Notes.setWhoAmI(who.textContent.trim());
+    paintSigning();
+  });
+  // Return means done, not a new line.
+  who.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); who.blur(); }
+  });
+  // Trailing spaces are invisible and would sit between the name and the
+  // apostrophe, so the field tidies itself once you leave it.
+  who.addEventListener('blur', () => { who.textContent = Notes.whoAmI(); });
+  // The comment rail states who is signing rather than asking again; the way
+  // to change it is the desk, where the name is kept.
+  $('#signing-edit').addEventListener('click', () => {
+    showDesk();
+    who.focus();
+    getSelection().selectAllChildren(who);
+  });
+
+  paintSigning();
 
   $('#comment-fold').addEventListener('click', () => {
     setFold(!$('#comment-rail').classList.contains('is-folded'));

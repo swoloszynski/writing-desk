@@ -39,7 +39,11 @@
   <div class="desk-sheet">
     <header class="desk-head">
       <div>
-        <h1>Writing Desk</h1>
+        <!-- The name is edited in the heading itself: there is one thing to say
+             about it and the heading already says it. -->
+        <h1><span class="desk-name" id="who" contenteditable="plaintext-only"
+                  spellcheck="false" role="textbox" aria-label="Your name"
+                  data-placeholder="Your name"></span>’s Writing Desk</h1>
         <p class="desk-sub" id="desk-sub"></p>
       </div>
       <div class="desk-actions">
@@ -197,6 +201,16 @@
     <!-- ---------------------------------------------------------- COMMENT -->
     <section class="view" id="view-comment">
       <aside class="rail left is-folded" id="comment-rail">
+        <!-- Who the notes will be signed by. The name itself is set on the
+             desk, because it belongs to the person and not to the document. -->
+        <div class="rail-head"><span>You</span></div>
+        <div class="group-body">
+          <div class="signing" id="signing">
+            Signing comments as <b id="signing-as">nobody</b>
+          </div>
+          <button class="btn action" id="signing-edit">Change it on the desk…</button>
+        </div>
+
         <div class="wip owner-only">
           <span class="wip-mark" aria-hidden="true">🚧</span>
           <span>Sending a draft out and getting notes back is under
@@ -232,16 +246,6 @@
           </div>
         </div>
 
-        <div class="rail-head"><span>You</span></div>
-        <div class="group-body">
-          <div class="field stack">
-            <label for="who">Sign notes as</label>
-            <input id="who" class="text-input" placeholder="Your name" spellcheck="false">
-          </div>
-          <div class="hint">
-            Kept in this browser only, so your notes arrive with a name on them.
-          </div>
-        </div>
       </aside>
 
       <!-- The fold sits on the seam between the panel and the stage, which is

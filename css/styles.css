@@ -522,6 +522,12 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 .rail-filter{ padding:0 13px 11px; border-bottom:1px solid var(--line-soft); }
 .rail-filter .seg{ width:100%; }
 
+/* Who the notes get signed by, stated rather than asked: the field itself is
+   on the desk, because the answer is the same for every document. */
+.signing{ font-size:13px; line-height:1.5; color:var(--dim); }
+.signing b{ color:var(--ink); font-weight:600; }
+.signing.is-unset b{ color:var(--dim); font-weight:400; font-style:italic; }
+
 /* A part of the application that is honestly not finished. Said plainly and
    above the panel it applies to, so it is read before anything is clicked. */
 .wip{
@@ -823,6 +829,22 @@ body.is-reviewing .sec{ cursor:pointer; }
   margin:0; font-size:15px; font-weight:700; letter-spacing:.2em;
   text-transform:uppercase; color:#6fd8cb;
 }
+/* The name in the heading is the field. It is underlined so it reads as
+   something you can type in, rather than as part of the title. */
+.desk-name{
+  display:inline-block; min-width:1.2em; padding:0 1px;
+  border-bottom:1px dashed rgba(111,216,203,.42);
+  color:inherit; font:inherit; letter-spacing:inherit; outline:none;
+  cursor:text; white-space:pre; caret-color:#6fd8cb;
+}
+.desk-name:hover{ border-bottom-color:#6fd8cb; background:rgba(111,216,203,.07); }
+.desk-name:focus{
+  border-bottom:1px solid #6fd8cb; background:rgba(111,216,203,.10);
+}
+.desk-name:empty::before{
+  content:attr(data-placeholder); color:rgba(111,216,203,.45);
+}
+
 .desk-sub{ margin:7px 0 0; font-size:13.5px; color:#9d9285; }
 .desk-actions{ margin-left:auto; display:flex; gap:9px; flex:0 0 auto; }
 .desk .btn{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); }
