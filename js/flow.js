@@ -62,7 +62,13 @@ export function flowCSS(settings) {
 ${headingRule('h1', settings.headings.h1)}
 ${headingRule('h2', settings.headings.h2)}
 ${headingRule('h3', settings.headings.h3)}
-.wd-flow > *:first-child, .wd-flow .wd-section > *:first-child{ margin-top:0; }
+/* Only the very first thing in the document is held flush. Every section used
+   to be, and that quietly threw away the space before a heading for exactly
+   the headings that open a section — which is most of them, and the ones the
+   setting is really about. At the top of a page the space becomes sinkage:
+   the heading sits lower and the page starts further down, which is what
+   asking for space above a heading means there. */
+.wd-flow > *:first-child{ margin-top:0; }
 
 .wd-flow ul, .wd-flow ol{
   margin:0 0 ${b.paraSpace}em;
