@@ -1109,11 +1109,10 @@ function paintSave() {
     $('#save-stage-note').textContent = 'What comes out of the printer, before folding.';
   }
 
-  const rows = [
-    ['Words', wordCount().toLocaleString()],
-    ['Pages', offsets.length],
-    ['Sections', doc.sections.length],
-  ];
+  // Words and pages are in the top bar on every stage, so they are not
+  // repeated here. What is left is what only this stage knows: what the
+  // imposition costs in paper, and anything still unanswered.
+  const rows = [];
   if (Doc.isFolded(doc.settings)) {
     const { padded } = impose(offsets.length);
     rows.push(['Blank pages added', padded - offsets.length]);
@@ -1121,6 +1120,8 @@ function paintSave() {
   }
   const open = Notes.openCount(doc);
   if (open) rows.push(['Comments still open', open]);
+  $('#save-summary-head').hidden = !rows.length;
+  $('#save-summary').parentElement.hidden = !rows.length;
   $('#save-summary').innerHTML = rows
     .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
 }
