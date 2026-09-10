@@ -279,18 +279,22 @@ On anything else nothing swaps and they are simply left and right. Calling the
 fold margin "left" on a page that has no fold is how people put their text
 into the crease.
 
-Five type families, all open licence, subset to Latin and embedded subset
+Seven type families, all open licence, subset to Latin and embedded subset
 again into the PDF:
 
 | Family | For |
 | --- | --- |
-| EB Garamond | old-style serif, small and quiet — the default body |
-| Libre Baskerville | sturdier serif, large on the body, reads well small |
-| Inter | neutral sans, for captions and page numbers |
-| Space Grotesk | geometric display sans, for headings |
+| Karla | grotesque, the default body face |
+| Work Sans | neutral sans, for captions and page numbers |
+| Lora | serif, the default heading and quote face |
+| Literata | reading serif, legible at small sizes |
+| Young Serif | heavy display serif, one upright weight |
 | Courier Prime | typewriter monospace |
+| Space Mono | fixed pitch, squared shapes |
 
-Licences are in `fonts/`.
+Licences are in `fonts/`, with a note on which files were modified and how.
+Lora is unmodified: its licence reserves the font name, so an instanced or
+subset version could not use it.
 
 ---
 

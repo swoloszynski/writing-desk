@@ -9,53 +9,70 @@
 //
 // The same TTF is served to `@font-face` and to pdf-lib, so line breaks
 // measured in the browser hold in the PDF.
+//
+// Lora is the exception: it is neither instanced nor subset. Its licence
+// reserves the font name, and instancing or subsetting produces a Modified
+// Version, which may not use that name. The upstream project publishes static
+// TTFs, so those are used unchanged — larger than a subset, but the family
+// keeps its name.
 
 export const FAMILIES = [
   {
-    name: 'EB Garamond',
-    role: 'serif',
-    note: 'Old-style serif. Small and quiet — the default body face.',
-    faces: {
-      '400normal': 'EBGaramond-Regular.ttf',
-      '700normal': 'EBGaramond-Bold.ttf',
-      '400italic': 'EBGaramond-Italic.ttf',
-      '700italic': 'EBGaramond-BoldItalic.ttf',
-    },
-    fallback: 'Georgia, "Times New Roman", serif',
-  },
-  {
-    name: 'Libre Baskerville',
-    role: 'serif',
-    note: 'Sturdier serif, large on the body. Reads well at small sizes.',
-    faces: {
-      '400normal': 'LibreBaskerville-Regular.ttf',
-      '700normal': 'LibreBaskerville-Bold.ttf',
-      '400italic': 'LibreBaskerville-Italic.ttf',
-      '700italic': 'LibreBaskerville-BoldItalic.ttf',
-    },
-    fallback: 'Georgia, serif',
-  },
-  {
-    name: 'Inter',
+    name: 'Karla',
     role: 'sans',
-    note: 'Neutral sans. Good for captions, page numbers, running heads.',
+    note: 'Grotesque with open shapes and some irregularity. The default body face.',
     faces: {
-      '400normal': 'Inter-Regular.ttf',
-      '700normal': 'Inter-Bold.ttf',
-      '400italic': 'Inter-Italic.ttf',
-      '700italic': 'Inter-BoldItalic.ttf',
+      '400normal': 'Karla-Regular.ttf',
+      '700normal': 'Karla-Bold.ttf',
+      '400italic': 'Karla-Italic.ttf',
+      '700italic': 'Karla-BoldItalic.ttf',
     },
     fallback: 'system-ui, -apple-system, sans-serif',
   },
   {
-    name: 'Space Grotesk',
-    role: 'display',
-    note: 'Geometric display sans. Headings that want to shout a little.',
+    name: 'Work Sans',
+    role: 'sans',
+    note: 'Neutral sans. For captions, page numbers and running heads.',
     faces: {
-      '400normal': 'SpaceGrotesk-Regular.ttf',
-      '700normal': 'SpaceGrotesk-Bold.ttf',
+      '400normal': 'WorkSans-Regular.ttf',
+      '700normal': 'WorkSans-Bold.ttf',
+      '400italic': 'WorkSans-Italic.ttf',
+      '700italic': 'WorkSans-BoldItalic.ttf',
     },
-    fallback: 'system-ui, sans-serif',
+    fallback: 'system-ui, -apple-system, sans-serif',
+  },
+  {
+    name: 'Lora',
+    role: 'serif',
+    note: 'Serif with brushed terminals. The default heading and quote face.',
+    faces: {
+      '400normal': 'Lora-Regular.ttf',
+      '700normal': 'Lora-Bold.ttf',
+      '400italic': 'Lora-Italic.ttf',
+      '700italic': 'Lora-BoldItalic.ttf',
+    },
+    fallback: 'Georgia, serif',
+  },
+  {
+    name: 'Literata',
+    role: 'serif',
+    note: 'Reading serif with a large x-height. Stays legible at small sizes.',
+    faces: {
+      '400normal': 'Literata-Regular.ttf',
+      '700normal': 'Literata-Bold.ttf',
+      '400italic': 'Literata-Italic.ttf',
+      '700italic': 'Literata-BoldItalic.ttf',
+    },
+    fallback: 'Georgia, serif',
+  },
+  {
+    name: 'Young Serif',
+    role: 'display',
+    note: 'Heavy display serif. One upright weight, no italic.',
+    faces: {
+      '400normal': 'YoungSerif-Regular.ttf',
+    },
+    fallback: 'Georgia, serif',
   },
   {
     name: 'Courier Prime',
@@ -66,6 +83,18 @@ export const FAMILIES = [
       '700normal': 'CourierPrime-Bold.ttf',
       '400italic': 'CourierPrime-Italic.ttf',
       '700italic': 'CourierPrime-BoldItalic.ttf',
+    },
+    fallback: 'ui-monospace, Menlo, monospace',
+  },
+  {
+    name: 'Space Mono',
+    role: 'mono',
+    note: 'Fixed pitch with squared shapes. More technical in tone than Courier Prime.',
+    faces: {
+      '400normal': 'SpaceMono-Regular.ttf',
+      '700normal': 'SpaceMono-Bold.ttf',
+      '400italic': 'SpaceMono-Italic.ttf',
+      '700italic': 'SpaceMono-BoldItalic.ttf',
     },
     fallback: 'ui-monospace, Menlo, monospace',
   },
@@ -88,9 +117,9 @@ export function stackFor(name) {
 /**
  * The file a given family/weight/style resolves to.
  *
- * Space Grotesk ships no italic. Rather than pretend, we hand back the
- * upright face and a `synthetic` flag; the browser slants it, and the PDF
- * writer applies the same shear so the two agree.
+ * Young Serif has one upright weight and no italic. In that case return the
+ * upright face with a `synthetic` flag: the browser slants it and the PDF
+ * writer applies the same shear, so screen and print agree.
  */
 export function faceFor(name, weight, italic) {
   const f = family(name);
