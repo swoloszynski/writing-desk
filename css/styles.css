@@ -634,10 +634,16 @@ body.is-reviewing .sec{ cursor:pointer; }
 @keyframes blink{ 0%,55%{ opacity:1 } 56%,100%{ opacity:0 } }
 
 /* The real text field: present for the operating system, absent to the eye.
-   One pixel at the foot of the column rather than a sheet laid over it — an
-   absolutely positioned overlay inside a scrolling box stays where the scroll
-   started, which is nowhere useful. Focus does not care how big a field is,
-   and every click is caught by the canvas and handed here anyway. */
+   One pixel at the foot of the stage rather than a sheet laid over the text.
+   Focus does not care how big a field is, and every click is caught by the
+   canvas and handed here anyway.
+
+   It sits outside the canvas on purpose. A browser scrolls the focused field
+   into view on every keystroke, and inside the canvas this field resolved to a
+   fixed offset near the top of the scrollable area, so on a draft longer than
+   one screen every keystroke scrolled back up to it and undid the pin. Out
+   here the only scroll container above it is the page, and the page does not
+   scroll. */
 .draft-input{
   position:absolute; left:0; bottom:0; width:1px; height:1px;
   border:0; padding:0; margin:0; resize:none; background:transparent;

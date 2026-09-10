@@ -245,6 +245,10 @@ export class Draft extends EventTarget {
    * So the column is watched as well. Whenever its height actually changes,
    * whatever the reason and whenever it lands, the pin is done again against
    * the height it really has.
+   *
+   * The other thing that moves this scroller is the browser, keeping the
+   * focused field in view. That is why the textarea is not inside it — see the
+   * note on `.draft-input`.
    */
   pin() {
     this.scroller.scrollTop = this.scroller.scrollHeight;
