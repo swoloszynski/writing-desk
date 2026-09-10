@@ -268,12 +268,25 @@ async function writeOne(doc) {
     const name = fileFor(doc);
     const bundle = await Doc.serialize(doc);
 
+    // The bytes, and the version the bytes are of, read in one breath.
+    //
+    // The document being written is the live one — the same object the editor
+    // types into and the 400ms save restamps — and everything below this line
+    // waits on a disk. Ask it for its version again after the file has closed
+    // and the answer can be a version that never went out, which leaves the
+    // mark vouching for something the folder does not hold. The next scan
+    // finds the file behind the mark, calls that a change made somewhere else,
+    // and hands back a document edited in two places by one person sitting at
+    // one machine.
+    const text = JSON.stringify(bundle, null, 1);
+    const stamp = bundle.doc.updatedAt || null;
+
     // createWritable writes to a scratch file and swaps it in on close, so a
     // crash halfway through leaves the previous copy rather than half of this
     // one.
     const file = await dir.getFileHandle(name, { create: true });
     const out = await file.createWritable();
-    await out.write(JSON.stringify(bundle, null, 1));
+    await out.write(text);
     await out.close();
 
     // A retitled document is a differently named file, and leaving the old one
@@ -284,7 +297,7 @@ async function writeOne(doc) {
     }
     // The version that is now on disk. Every later scan reads this to decide
     // whether a file has moved on without us.
-    marks[doc.id] = { name, updatedAt: doc.updatedAt || null };
+    marks[doc.id] = { name, updatedAt: stamp };
     await remember();
 
     lastError = '';
@@ -307,6 +320,39 @@ async function writeOne(doc) {
 // ---------------------------------------------------------------------------
 
 const SUFFIX = '.writing-desk.json';
+
+/**
+ * The parts of a document that are the writing, rather than a note about it.
+ *
+ * `updatedAt` and `words` are about the document and not in it; `stage` is
+ * where somebody was sitting when they left, which is worth restoring and not
+ * worth keeping a second copy of a novel over.
+ */
+const WRITING = ['title', 'author', 'status', 'settings', 'draft', 'comments',
+                 'sections'];
+
+/** Two documents flattened for comparison. Key order is nobody's business,
+ *  and two desks need not have arrived at the same one, so it is sorted away. */
+const plainly = doc => JSON.stringify(
+  Object.fromEntries(WRITING.map(k => [k, doc[k]])),
+  (_, v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]]))
+    : v));
+
+/**
+ * Do these two say the same thing, and differ only in when they were stamped?
+ *
+ * The fork test below is a test of clocks, and the clocks are the part of this
+ * that goes wrong. A mark not written down before the tab was closed, a mark
+ * cleared by picking the folder again, a mark for a document that predates
+ * marks having versions at all — each of those leaves two timestamps
+ * disagreeing about a document that nobody has edited twice, and answering
+ * that with a second copy is how one document becomes six by Thursday.
+ *
+ * So before keeping both, read both. Two versions that say the same thing are
+ * one version, whatever their clocks claim.
+ */
+const sameWriting = (a, b) => plainly(a) === plainly(b);
 
 async function readBundle(handle) {
   try {
@@ -386,6 +432,17 @@ export async function scan({ current = null } = {}) {
       const weMoved = (mine.updatedAt || null) !== markAt;
 
       if (theyMoved && weMoved) {
+        const doc = await Doc.deserialize(bundle);
+
+        // Both clocks have moved and neither document has. Nothing happened
+        // here worth a second copy; the two sides only lost track of which
+        // version the file held. Write ours out, which settles the file and
+        // the mark on one version again, and say nothing about it.
+        if (sameWriting(doc, mine)) {
+          if (await writeOne(mine)) out.pushed++;
+          continue;
+        }
+
         // A fork: two documents that used to be one. Both are kept, and which
         // one keeps the original identity is not a matter of taste — it is
         // what stops the two desks trading copies for ever.
@@ -404,7 +461,6 @@ export async function scan({ current = null } = {}) {
         out.copies.push({ title: kept.title, from: mine.title || 'Untitled' });
         out.touched.add(kept.id);
 
-        const doc = await Doc.deserialize(bundle);
         await Doc.writeDocument(doc, { restamp: false });
         marks[id] = { name: handle.name, updatedAt: doc.updatedAt || fileAt };
         out.touched.add(id);
