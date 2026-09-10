@@ -67,22 +67,22 @@ export function defaultSettings() {
     // printed one page to a sheet nothing swaps and it simply is the left.
     margins: { top: 1, bottom: 1, inside: 1, outside: 1 },
 
-    body: { font: 'EB Garamond', size: 11.5, lineHeight: 1.45, align: 'left',
+    body: { font: 'Karla', size: 11.5, lineHeight: 1.45, align: 'left',
             indent: 0, paraSpace: 0.6 },
 
     headings: {
-      h1: { font: 'Space Grotesk', size: 22, weight: 700, italic: false,
+      h1: { font: 'Lora', size: 22, weight: 700, italic: false,
             align: 'left', before: 0, after: 0.4, caps: false, tracking: -0.01 },
-      h2: { font: 'Space Grotesk', size: 15, weight: 700, italic: false,
+      h2: { font: 'Lora', size: 15, weight: 700, italic: false,
             align: 'left', before: 1, after: 0.3, caps: false, tracking: 0 },
-      h3: { font: 'Inter', size: 11.5, weight: 700, italic: false,
+      h3: { font: 'Work Sans', size: 11.5, weight: 700, italic: false,
             align: 'left', before: 0.8, after: 0.2, caps: true, tracking: 0.06 },
     },
 
-    quote: { font: 'EB Garamond', size: 11.5, italic: true, indent: 1 },
-    caption: { font: 'Inter', size: 8.5, align: 'center' },
+    quote: { font: 'Lora', size: 11.5, italic: true, indent: 1 },
+    caption: { font: 'Work Sans', size: 8.5, align: 'center' },
 
-    folio: { on: true, position: 'bottom-center', font: 'Inter', size: 9,
+    folio: { on: true, position: 'bottom-center', font: 'Work Sans', size: 9,
              startAt: 1, hideOnFirst: true, hideOnBlank: true, format: '#' },
 
     // `layout` is how the pages sit on paper, which is a Format decision.
@@ -223,6 +223,37 @@ export function normalizeComment(c) {
 }
 
 /**
+ * Families no longer shipped, mapped to their replacements.
+ *
+ * A document stores the name of its face, not the face itself. When a family
+ * is removed, `family()` falls back to FAMILIES[0] for every document set in
+ * it, changing the type and the page count without saying so.
+ *
+ * Each removed family maps to the closest remaining one — serif to serif,
+ * sans to sans — rather than to the current defaults, because what was chosen
+ * was a kind of face. Keep this map: a document written now may be opened
+ * years later, and files in the folder outlive the browser storage.
+ */
+const GONE = {
+  'EB Garamond': 'Literata',
+  'Libre Baskerville': 'Literata',
+  'Inter': 'Work Sans',
+  'Space Grotesk': 'Karla',
+};
+
+function normalizeFonts(settings) {
+  const swap = where => {
+    const to = where && GONE[where.font];
+    if (to) where.font = to;
+  };
+  swap(settings.body);
+  swap(settings.quote);
+  swap(settings.caption);
+  swap(settings.folio);
+  for (const h of Object.values(settings.headings || {})) swap(h);
+}
+
+/**
  * Settle the print settings of a document coming in off the shelf or a file.
  *
  * `press.exportMode` held two decisions in one field: which layout, and
@@ -255,6 +286,7 @@ export function adoptShape(saved) {
   doc.title = saved.title ?? doc.title;
   doc.author = saved.author ?? doc.author;
   doc.settings = merge(defaultSettings(), saved.settings);
+  normalizeFonts(doc.settings);
   normalizePress(doc.settings);
   doc.draft = { ...defaultDraft(), ...(saved.draft || {}) };
   doc.comments = Array.isArray(saved.comments) ? saved.comments.map(normalizeComment) : [];
