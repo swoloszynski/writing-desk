@@ -277,6 +277,13 @@ Six papers, and one of them folds:
 | Zine · Letter folded | 11 × 8.5 in | 5.5 × 8.5 in |
 | Zine · A4 folded | 11.69 × 8.27 in | 5.845 × 8.27 in |
 
+With a folded paper and the print layout set to **Print & fold**, the pages
+are shown as the booklet opens: the front cover alone on the right, then each
+pair of facing pages, then the back cover alone on the left. The blank pages
+that pad the booklet out to whole sheets appear where they will be bound, so
+a pinned back cover shows on the outside. Selecting and dragging sections
+works the same as in the flat grid.
+
 Two of the margins change their names with the paper. On a folded booklet they
 are the fold and the trimmed edge, and the fold swaps sides from page to page
 — give it a little more than the outside or the text creeps into the crease.

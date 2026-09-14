@@ -132,6 +132,60 @@ export function renderReadingOrder(flow, offsets, settings, scale) {
 }
 
 /**
+ * The booklet as it opens, in reading order.
+ *
+ * The front cover sits alone on the right, then each pair of facing pages,
+ * then the back cover alone on the left. Positions come from the imposition,
+ * so the blanks that pad the booklet out to whole sheets appear where they
+ * will be bound — at the end, or in front of a pinned back cover — and every
+ * page is on the side of the fold it will be printed on.
+ *
+ * Each page is a `.wd-cell` with the content page number in `data-page`, the
+ * same as the flat grid, so selecting and dragging sections works the same.
+ *
+ * @param backCoverFrom as for renderSheets.
+ */
+export function renderSpreads(flow, offsets, settings, scale, backCoverFrom = null) {
+  const clone = cloneFlow(flow);
+  const m = metrics(settings);
+  const slots = bookletOrder(offsets.length, backCoverFrom);
+  const frag = document.createDocumentFragment();
+
+  // Positions pair up as (2,3), (4,5) …; 1 and the last stand alone.
+  for (let pos = 0; pos <= slots.length; pos += 2) {
+    const spread = document.createElement('div');
+    spread.className = 'wd-spread';
+    for (const [side, p] of [['left', pos], ['right', pos + 1]]) {
+      if (p < 1 || p > slots.length) {
+        // The outside of a cover: nothing there, but the room is kept so the
+        // cover stays on its own side.
+        const room = document.createElement('div');
+        room.className = 'wd-void';
+        room.style.width = `${m.pageW * scale}px`;
+        room.style.height = `${m.pageH * scale}px`;
+        spread.appendChild(room);
+        continue;
+      }
+      const content = slots[p - 1];
+      const blank = content === 0;
+      const cell = document.createElement('div');
+      cell.className = `wd-cell is-${side}`;
+      if (!blank) cell.dataset.page = content;
+      cell.appendChild(renderPage(clone, offsets[content - 1] ?? 0, settings, p, {
+        side, blank, scale, height: blank ? null : pageHeight(offsets, content - 1),
+      }));
+      const cap = document.createElement('div');
+      cap.className = 'wd-cell-cap';
+      cap.textContent = blank ? 'blank' : `page ${content}`;
+      cell.appendChild(cap);
+      spread.appendChild(cell);
+    }
+    frag.appendChild(spread);
+  }
+  return frag;
+}
+
+/**
  * The sheets as they will be printed, front and back.
  *
  * @param backCoverFrom 1-based content page the pinned back cover starts on,

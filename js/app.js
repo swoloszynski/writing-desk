@@ -19,7 +19,7 @@ import { applyFlowCSS, flowCSS } from './flow.js';
 import { paginate } from './paginate.js';
 import { Editor, sanitize } from './editor.js';
 import { installMarkdownInput } from './markdown-input.js';
-import { renderSeams, renderReadingOrder, renderSheets } from './preview.js';
+import { renderSeams, renderReadingOrder, renderSpreads, renderSheets } from './preview.js';
 import { buildSettingsRail, buildFields, PRESS_SCHEMA, DRAFT_SCHEMA } from './settings-ui.js';
 import { impose } from './imposition.js';
 import { clearMetricCache } from './extract.js';
@@ -1056,7 +1056,9 @@ function applyDefaultZoom(which) {
   // A sheet already carries two pages, so a booklet fits one of those across
   // and an ordinary document fits two pages. Both come to the same width.
   const press = which === 'save' && exportMode() === 'press';
-  const fit = fitScale(host, press ? m.sheetW : m.pageW, press ? 1 : 2);
+  const spread = which === 'format' && spreadsOn();
+  const fit = fitScale(host, press ? m.sheetW : spread ? 2 * m.pageW : m.pageW,
+                       press || spread ? 1 : 2);
   if (fit === null) return;
   // Down to the slider's own step, never up. A range input snaps whatever it
   // is given, and snapping upwards is what turns two pages across into one.
@@ -1075,7 +1077,8 @@ function applyDefaultZoom(which) {
  */
 function setZoomCeiling() {
   const slider = $('#format-zoom');
-  const fit = fitScale($('#page-grid'), Doc.metrics(doc.settings).pageW, 1);
+  const unitW = Doc.metrics(doc.settings).pageW * (spreadsOn() ? 2 : 1);
+  const fit = fitScale($('#page-grid'), unitW, 1);
   if (fit === null) return;
   const step = +slider.step || 0.01;
   slider.max = String(Math.max(+slider.min + step, Math.floor(fit / step) * step));
@@ -1083,15 +1086,34 @@ function setZoomCeiling() {
   if (+slider.value > +slider.max) slider.value = slider.max;
 }
 
+/**
+ * Whether Format shows the booklet as spreads.
+ *
+ * Only when the paper folds and the print layout is Print & fold: that is
+ * when the pages will be bound facing each other, and seeing them that way
+ * is how you check what lands on a cover and what faces what.
+ */
+function spreadsOn() {
+  return Doc.isFolded(doc.settings) && doc.settings.press.layout === 'press';
+}
+
 function paintPageGrid() {
   setZoomCeiling();
   applyDefaultZoom('format');
   const scale = +$('#format-zoom').value;
   const host = $('#page-grid');
+  const spreads = spreadsOn();
+  const unitW = Doc.metrics(doc.settings).pageW * (spreads ? 2 : 1);
   host.textContent = '';
+  host.classList.toggle('is-spreads', spreads);
   host.style.gridTemplateColumns =
-    `repeat(auto-fill, minmax(${Math.round(Doc.metrics(doc.settings).pageW * scale)}px, max-content))`;
-  host.appendChild(renderReadingOrder(flow, offsets, doc.settings, scale));
+    `repeat(auto-fill, minmax(${Math.round(unitW * scale)}px, max-content))`;
+  $('#format-hint').textContent = spreads
+    ? 'As the booklet opens: the cover on its own, then each pair of facing pages. '
+    : 'In the order a reader meets them. ';
+  host.appendChild(spreads
+    ? renderSpreads(flow, offsets, doc.settings, scale, backCoverFrom())
+    : renderReadingOrder(flow, offsets, doc.settings, scale));
   host.querySelectorAll('.wd-cell').forEach(c => { c.draggable = true; });
   paintPicked();
 }
