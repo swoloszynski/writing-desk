@@ -317,7 +317,11 @@ function sectionCard(s, { where = 'edit' } = {}) {
 
     // In Format you are looking at pages, and a click here is asking which
     // ones this section is on — not asking to be taken away to the editor.
-    if (where === 'format') { showSectionPages(s.id); return; }
+    if (where === 'format') {
+      pickSections([s.id], { add: e.metaKey || e.ctrlKey || e.shiftKey });
+      scrollToSection(s.id);
+      return;
+    }
 
     const target = flow.querySelector(`.wd-section[data-id="${s.id}"]`);
     if (!target) return;
@@ -1034,6 +1038,8 @@ function paintPageGrid() {
   host.style.gridTemplateColumns =
     `repeat(auto-fill, minmax(${Math.round(Doc.metrics(doc.settings).pageW * scale)}px, max-content))`;
   host.appendChild(renderReadingOrder(flow, offsets, doc.settings, scale));
+  host.querySelectorAll('.wd-cell').forEach(c => { c.draggable = true; });
+  paintPicked();
 }
 
 /** The section a page belongs to: the one that starts on it, or covers it. */
@@ -1048,35 +1054,158 @@ function sectionAtPage(pageNo) {
   return covering;
 }
 
+/** Sections selected in Format, by id. A page stands for its section. */
+const picked = new Set();
+
 /**
- * Show which pages a section is on.
+ * Select sections in Format.
  *
- * An outline around them for a moment, and a scroll to the first if it is out
- * of sight. A section can run to a dozen pages, so the answer to "where is
- * this?" has to be visible without hunting for it.
+ * With `add`, the ids toggle in and out of the current selection instead of
+ * replacing it, which is what a modifier click means.
  */
-function showSectionPages(id) {
+function pickSections(ids, { add = false } = {}) {
+  if (!add) picked.clear();
+  for (const id of ids) {
+    if (add && picked.has(id)) picked.delete(id);
+    else picked.add(id);
+  }
+  paintPicked();
+}
+
+/** Outline every page of every picked section, and mark their cards. */
+function paintPicked() {
+  for (const id of picked) if (!doc.sections.some(s => s.id === id)) picked.delete(id);
+  const host = $('#page-grid');
+  const lit = new Set();
+  for (const id of picked) {
+    const range = sectionPageRange(id);
+    if (!range) continue;
+    for (let p = range[0]; p <= range[1]; p++) lit.add(p);
+  }
+  host.querySelectorAll('.wd-cell').forEach(c =>
+    c.classList.toggle('is-picked', lit.has(+c.dataset.page)));
+  $$('#section-list-2 .sec').forEach(el =>
+    el.classList.toggle('is-active', picked.has(el.dataset.id)));
+}
+
+/** Scroll the first page of a section into view if it is out of sight. */
+function scrollToSection(id) {
   const range = sectionPageRange(id);
   if (!range) return;
   const host = $('#page-grid');
-  host.querySelectorAll('.wd-cell.is-lit').forEach(c => c.classList.remove('is-lit'));
-
-  let first = null;
-  for (let p = range[0]; p <= range[1]; p++) {
-    const cell = host.querySelector(`.wd-cell[data-page="${p}"]`);
-    if (!cell) continue;
-    cell.classList.add('is-lit');
-    first ??= cell;
-  }
-  clearTimeout(showSectionPages.timer);
-  showSectionPages.timer = setTimeout(
-    () => host.querySelectorAll('.wd-cell.is-lit').forEach(c => c.classList.remove('is-lit')),
-    1800);
-
-  const wrap = host.parentElement;
+  const first = host.querySelector(`.wd-cell[data-page="${range[0]}"]`);
   if (!first) return;
+  const wrap = host.parentElement;
   const top = first.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
   if (top < 0 || top > wrap.clientHeight - 60) wrap.scrollTop += top - 26;
+}
+
+/**
+ * Move sections to sit before or after another one, keeping their order.
+ * Ids not in the document are ignored; a target inside `ids` is a no-op.
+ */
+function moveSections(ids, targetId, after) {
+  if (ids.has(targetId)) return false;
+  const moving = doc.sections.filter(s => ids.has(s.id));
+  const rest = doc.sections.filter(s => !ids.has(s.id));
+  const at = rest.findIndex(s => s.id === targetId);
+  if (at < 0 || !moving.length) return false;
+  rest.splice(after ? at + 1 : at, 0, ...moving);
+  doc.sections = rest;
+  holdBackCoverLast();
+  renderGalley();
+  renderSectionLists();
+  return true;
+}
+
+/**
+ * Selecting and dragging sections by their pages.
+ *
+ * A page is not a thing that can be moved on its own: add a sentence and the
+ * break lands somewhere else. So a page stands for the section it belongs to.
+ * Clicking one selects that section; a modifier click adds or removes another;
+ * dragging any selected page moves every selected section together. Dropping
+ * on the left half of a page puts them before that page's section, the right
+ * half after it, and the line showing where they will land sits at the edge
+ * of that section rather than the page under the pointer.
+ */
+function bindPageGrid() {
+  const host = $('#page-grid');
+  // The ids being dragged, or null when the drag started somewhere else.
+  let dragging = null;
+
+  const cellAt = t => t instanceof Element ? t.closest('.wd-cell') : null;
+
+  const clearDropMark = () =>
+    host.querySelectorAll('.is-drop-before, .is-drop-after')
+        .forEach(c => c.classList.remove('is-drop-before', 'is-drop-after'));
+
+  // Where a drop at this event would land: the section, and which side.
+  const dropTarget = e => {
+    const cell = cellAt(e.target);
+    if (!cell) return null;
+    const id = sectionAtPage(+cell.dataset.page);
+    if (!id) return null;
+    const r = cell.getBoundingClientRect();
+    return { id, after: e.clientX > r.left + r.width / 2 };
+  };
+
+  // The wrap rather than the grid, so a click below the last row clears too.
+  host.parentElement.addEventListener('click', e => {
+    const cell = cellAt(e.target);
+    if (!cell) { pickSections([]); return; }
+    const id = sectionAtPage(+cell.dataset.page);
+    if (!id) return;
+    pickSections([id], { add: e.metaKey || e.ctrlKey || e.shiftKey });
+  });
+
+  host.addEventListener('dragstart', e => {
+    const cell = cellAt(e.target);
+    if (!cell) return;
+    const id = sectionAtPage(+cell.dataset.page);
+    if (!id) { e.preventDefault(); return; }
+    // Dragging a page that is not selected drags its section alone.
+    if (!picked.has(id)) pickSections([id]);
+    dragging = new Set(picked);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', [...dragging].join(','));
+    host.querySelectorAll('.wd-cell.is-picked').forEach(c => c.classList.add('is-dragging'));
+  });
+
+  host.addEventListener('dragend', () => {
+    dragging = null;
+    host.querySelectorAll('.is-dragging').forEach(c => c.classList.remove('is-dragging'));
+    clearDropMark();
+  });
+
+  host.addEventListener('dragover', e => {
+    // A card from the rail can be dropped here too.
+    const ids = dragging ?? (dragId ? new Set([dragId]) : null);
+    if (!ids) return;
+    const t = dropTarget(e);
+    clearDropMark();
+    if (!t || ids.has(t.id)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const range = sectionPageRange(t.id);
+    if (!range) return;
+    const edge = host.querySelector(`.wd-cell[data-page="${t.after ? range[1] : range[0]}"]`);
+    edge?.classList.add(t.after ? 'is-drop-after' : 'is-drop-before');
+  });
+
+  host.addEventListener('dragleave', e => {
+    if (!host.contains(e.relatedTarget)) clearDropMark();
+  });
+
+  host.addEventListener('drop', e => {
+    const ids = dragging ?? (dragId ? new Set([dragId]) : null);
+    clearDropMark();
+    if (!ids) return;
+    e.preventDefault();
+    const t = dropTarget(e);
+    if (!t) return;
+    if (moveSections(ids, t.id, t.after)) pickSections([...ids]);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1596,6 +1725,7 @@ function bindToolbar() {
 
   $('#add-section').addEventListener('click', addSection);
   $('#add-section-2').addEventListener('click', addSection);
+  bindPageGrid();
 
   // Format is for looking. Going from a page to the words on it is a
   // deliberate act, so it takes a deliberate gesture.
@@ -2606,7 +2736,9 @@ async function boot() {
   $('#to-desk').addEventListener('click', showDesk);
   $('#desk-new').addEventListener('click', makeDocument);
   addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !$('#desk').hidden) hideDesk();
+    if (e.key !== 'Escape') return;
+    if (!$('#desk').hidden) hideDesk();
+    else if (view === 'format') pickSections([]);
   });
 
   const who = $('#who');

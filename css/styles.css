@@ -387,17 +387,25 @@ input.tnum{ width:64px; text-align:right; font-variant-numeric:tabular-nums; }
 
 .pgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
         gap:22px 18px; align-items:start; }
-.wd-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.wd-cell{ display:flex; flex-direction:column; align-items:center; gap:6px;
+          position:relative; user-select:none; cursor:grab; }
 .wd-cell-cap{ font-size:12px; color:var(--dimmer); letter-spacing:.05em;
              font-variant-numeric:tabular-nums; }
 
-/* The pages a section is on, said for a moment and then let go. */
+/* The pages of a selected section. A page stands for its section. */
 .wd-cell .wd-scaled{ outline:0 solid transparent; outline-offset:4px;
-                     transition:outline-color .5s ease .9s; }
-.wd-cell.is-lit .wd-scaled{
-  outline:2px solid var(--accent); transition:outline-color .12s;
+                     transition:outline-color .12s; }
+.wd-cell.is-picked .wd-scaled{ outline:2px solid var(--accent); }
+.wd-cell.is-picked .wd-cell-cap{ color:var(--accent); }
+.wd-cell.is-dragging{ opacity:.35; }
+
+/* Where dragged sections will land: a line in the gap beside the page. */
+.wd-cell.is-drop-before::before, .wd-cell.is-drop-after::before{
+  content:''; position:absolute; top:0; bottom:22px; width:3px;
+  background:var(--accent); border-radius:2px; pointer-events:none;
 }
-.wd-cell.is-lit .wd-cell-cap{ color:var(--accent); }
+.wd-cell.is-drop-before::before{ left:-10px; }
+.wd-cell.is-drop-after::before{ right:-10px; }
 
 /* --- sheets -------------------------------------------------------------- */
 
