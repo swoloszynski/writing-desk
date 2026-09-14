@@ -157,6 +157,11 @@ paper. Format is where pages are the job, so that is where the real space is
 shown. Pagination is the same either way: a break ends its page because it is
 a break, not because of how tall it is.
 
+**Size** in the toolbar scales the page on screen, and the same control is in
+Comment. It is a transform, not a re-flow: the line breaks, the page breaks
+and the PDF are the same at every size. The setting is kept in this browser
+rather than with the document.
+
 Edit starts with the comments away. **Show Comments** in the toolbar brings
 them back — the rail, the highlights, and the button that makes a new one —
 and **Hide Comments** puts them away again. Edit is where you are writing

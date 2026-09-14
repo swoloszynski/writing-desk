@@ -75,6 +75,7 @@ function save(opts) {
 
 const flow = $('#flow');
 const paper = $('#paper');
+const paperBox = $('#paper-box');
 const seams = $('#seams');
 const marks = $('#marks');
 const editor = new Editor(flow, doc);
@@ -82,6 +83,57 @@ const editor = new Editor(flow, doc);
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Galley zoom
+// ---------------------------------------------------------------------------
+//
+// Edit and Comment scale the paper with a transform. A transform changes what
+// you see and nothing else: the line breaks, the page offsets and the PDF are
+// all read from the same layout whatever the zoom. The cost is that every
+// measurement of the galley comes back scaled, so the code that measures it
+// takes the zoom off first; see unzoomed().
+
+const ZOOM_KEY = 'writing-desk/galley-zoom';
+let galleyZoom = 1;
+
+function loadGalleyZoom() {
+  try {
+    const z = parseFloat(localStorage.getItem(ZOOM_KEY));
+    if (z >= 0.5 && z <= 2) galleyZoom = z;
+  } catch {}
+}
+
+function setGalleyZoom(z) {
+  galleyZoom = z;
+  try { localStorage.setItem(ZOOM_KEY, String(z)); } catch {}
+  applyGalleyZoom();
+}
+
+function applyGalleyZoom() {
+  paper.style.transform = galleyZoom === 1 ? '' : `scale(${galleyZoom})`;
+  sizePaperBox();
+  $$('.galley-zoom').forEach(el => { el.value = String(galleyZoom); });
+}
+
+/** Give the box the paper's scaled footprint, so the canvas scrolls right. */
+function sizePaperBox() {
+  paperBox.style.width = `${paper.offsetWidth * galleyZoom}px`;
+  paperBox.style.height = `${paper.offsetHeight * galleyZoom}px`;
+}
+
+/**
+ * Run `fn` with the zoom taken off, and put it back afterwards.
+ *
+ * getBoundingClientRect and getClientRects report the transformed box, so
+ * pagination, section ranges, comment highlights and the PDF extractor would
+ * all read scaled numbers. Nothing paints in between, so nothing flickers.
+ */
+function unzoomed(fn) {
+  if (galleyZoom === 1) return fn();
+  paper.style.transform = '';
+  try { return fn(); } finally { paper.style.transform = `scale(${galleyZoom})`; }
+}
 
 /** Size the paper column so the galley sits inside real margins. */
 function layoutPaper() {
@@ -97,6 +149,7 @@ function layoutPaper() {
     : `${m.marginTop}px ${padX}px ${m.marginBottom}px`;
   seams.style.top = `${m.marginTop}px`;
   seams.style.bottom = `${m.marginBottom}px`;
+  sizePaperBox();
 }
 
 let paginateTimer = null;
@@ -123,7 +176,8 @@ function schedule({ structural = false } = {}) {
  */
 function repaginate() {
   const m = Doc.metrics(doc.settings);
-  offsets = paginate(flow, m.contentH).offsets;
+  offsets = unzoomed(() => paginate(flow, m.contentH).offsets);
+  sizePaperBox();
 
   renderSeams(seams, offsets, doc.settings);
   paintMarks();
@@ -199,8 +253,8 @@ function renderStats() {
 function sectionPageRange(id) {
   const el = flow.querySelector(`.wd-section[data-id="${id}"]`);
   if (!el) return null;
-  const base = flow.getBoundingClientRect().top;
-  const r = el.getBoundingClientRect();
+  const [base, r] = unzoomed(() =>
+    [flow.getBoundingClientRect().top, el.getBoundingClientRect()]);
   const pageOf = y => {
     let p = 0;
     for (let i = 0; i < offsets.length; i++) if (y >= offsets[i] - 0.5) p = i;
@@ -439,7 +493,7 @@ function paintMarks() {
   // the layer was shown again. There is nothing to see while it is hidden, so
   // the work waits until there is.
   if (marks.hidden) marks.textContent = '';
-  else Notes.paintHighlights(flow, marks, doc.comments, { activeId: activeComment });
+  else unzoomed(() => Notes.paintHighlights(flow, marks, doc.comments, { activeId: activeComment }));
 
   const now = doc.comments.filter(c => c.orphaned).map(c => c.id).join(',');
   if (now !== orphanSignature) {
@@ -928,7 +982,7 @@ function applyView(next) {
 }
 
 /** Whichever canvas is holding the galley at the moment. */
-const canvasOf = () => paper.parentElement;
+const canvasOf = () => paperBox.parentElement;
 
 /**
  * Move the document to the stage that is about to show it.
@@ -946,10 +1000,10 @@ const canvasOf = () => paper.parentElement;
  */
 function holdGalley(stage) {
   const wanted = stage === 'comment' ? $('#comment-canvas') : $('#canvas');
-  const from = paper.parentElement;
+  const from = paperBox.parentElement;
   if (from && from !== wanted) {
     const top = from.scrollTop;
-    wanted.appendChild(paper);
+    wanted.appendChild(paperBox);
     wanted.scrollTop = top;
   }
   // Comment is for reading and annotating. Switching the sections off here,
@@ -1350,6 +1404,8 @@ async function exportPDF() {
 
   const say = msg => { status.classList.remove('err'); status.textContent = msg; };
 
+  // The extractor measures the galley, and the export is not looking at it.
+  paper.style.transform = '';
   try {
     say('measuring…');
     editor.harvest();
@@ -1406,6 +1462,7 @@ async function exportPDF() {
   } finally {
     exporting = false;
     button.disabled = false;
+    applyGalleyZoom();
   }
 }
 
@@ -2778,6 +2835,12 @@ async function boot() {
     zoomTouched.format = true;
     if (view === 'format') paintPageGrid();
   });
+  $$('.galley-zoom').forEach(el =>
+    el.addEventListener('input', () => setGalleyZoom(+el.value)));
+  loadGalleyZoom();
+  applyGalleyZoom();
+  // The paper grows and shrinks as you type; the box has to follow it.
+  new ResizeObserver(sizePaperBox).observe(paper);
   $('#save-zoom').addEventListener('input', () => {
     zoomTouched.save = true;
     if (view === 'save') paintSave();

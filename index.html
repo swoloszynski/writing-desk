@@ -177,14 +177,25 @@
                  accept="application/json,.json,text/markdown,.md,.markdown,.txt">
           <input type="file" id="notes-file" accept="application/json,.json" hidden>
           <div class="spacer"></div>
+          <div class="zoom">
+            <label for="edit-zoom">Size</label>
+            <input type="range" id="edit-zoom" class="galley-zoom" min="0.5" max="2" step="0.05" value="1">
+          </div>
+          <div class="tsep"></div>
           <button class="tbtn" id="toggle-notes" title="Show or hide comments"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 9.4a1.6 1.6 0 0 1-1.6 1.6H6.2L3 13.6V11H2.6A1.6 1.6 0 0 1 1 9.4V3.6A1.6 1.6 0 0 1 2.6 2h9.8A1.6 1.6 0 0 1 14 3.6z"/></svg><span id="toggle-notes-label">Show Comments</span></button>
         </div>
 
         <div class="canvas" id="canvas">
-          <div class="paper" id="paper">
-            <div class="seams" id="seams"></div>
-            <div class="marks" id="marks"></div>
-            <div class="wd-flow" id="flow"></div>
+          <!-- The box is the paper's footprint at the current zoom. The paper
+               is scaled with a transform, which leaves its layout box alone,
+               so the box is what gives the canvas the right amount to scroll.
+               See galleyZoom in js/app.js. -->
+          <div class="paper-box" id="paper-box">
+            <div class="paper" id="paper">
+              <div class="seams" id="seams"></div>
+              <div class="marks" id="marks"></div>
+              <div class="wd-flow" id="flow"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -262,6 +273,10 @@
           <strong class="tlabel">Comment</strong>
           <span class="hint">Reading only. Select any passage to leave a note on it.</span>
           <div class="spacer"></div>
+          <div class="zoom">
+            <label for="comment-zoom">Size</label>
+            <input type="range" id="comment-zoom" class="galley-zoom" min="0.5" max="2" step="0.05" value="1">
+          </div>
         </div>
 
         <!-- The galley moves in here while this stage is on. There is one
