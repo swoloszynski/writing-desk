@@ -76,7 +76,7 @@ export function defaultSettings() {
       h2: { font: 'Lora', size: 15, weight: 700, italic: false,
             align: 'left', before: 1, after: 0.3, caps: false, tracking: 0 },
       h3: { font: 'Work Sans', size: 11.5, weight: 700, italic: false,
-            align: 'left', before: 0.8, after: 0.2, caps: true, tracking: 0.06 },
+            align: 'left', before: 0.8, after: 0.2, caps: false, tracking: 0 },
     },
 
     quote: { font: 'Lora', size: 11.5, italic: true, indent: 1 },
