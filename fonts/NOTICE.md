@@ -7,17 +7,22 @@ licence for each family sits beside it as `OFL-<Family>.txt`.
 | --- | --- |
 | Karla | The Karla Project Authors |
 | Work Sans | The Work Sans Project Authors |
+| Nunito Sans | The Nunito Sans Project Authors |
 | Lora | The Lora Project Authors |
 | Literata | The Literata Project Authors |
 | Young Serif | The Young Serif Project Authors |
+| Coustard | The Coustard Project Authors |
+| Caveat | The Caveat Project Authors |
 | Courier Prime | The Courier Prime Project Authors |
 | Space Mono | The Space Mono Project Authors |
 
 Most of the `.ttf` files are modified: each variable font was instanced to
 fixed weights (400 and 700, upright and italic) and then subset to Latin,
-Latin Extended and common punctuation. Under the OFL these are Modified
-Versions, distributed under the same licence and not using the Reserved Font
-Names of the originals in any new font name.
+Latin Extended and common punctuation. Nunito Sans was instanced at width 100,
+optical size 12 and YTLC 500. Coustard is static upstream and was only
+subset. Under the OFL these are Modified Versions, distributed under the same
+licence and not using the Reserved Font Names of the originals in any new font
+name.
 
 Lora is the exception and is unmodified. Its licence reserves the font name,
 and instancing or subsetting it would produce a Modified Version, which may not

@@ -42,6 +42,18 @@ export const FAMILIES = [
     fallback: 'system-ui, -apple-system, sans-serif',
   },
   {
+    name: 'Nunito Sans',
+    role: 'sans',
+    note: 'Sans with rounded terminals. The NHC brand face for labels and small headings.',
+    faces: {
+      '400normal': 'NunitoSans-Regular.ttf',
+      '700normal': 'NunitoSans-Bold.ttf',
+      '400italic': 'NunitoSans-Italic.ttf',
+      '700italic': 'NunitoSans-BoldItalic.ttf',
+    },
+    fallback: 'system-ui, -apple-system, sans-serif',
+  },
+  {
     name: 'Lora',
     role: 'serif',
     note: 'Serif with brushed terminals. The default heading and quote face.',
@@ -73,6 +85,28 @@ export const FAMILIES = [
       '400normal': 'YoungSerif-Regular.ttf',
     },
     fallback: 'Georgia, serif',
+  },
+  {
+    // Bold selects the Black weight (900). Black is the weight the NHC brand
+    // uses, and the family has no weight between Regular and Black.
+    name: 'Coustard',
+    role: 'display',
+    note: 'Slab display serif. The NHC brand identity face. No italic.',
+    faces: {
+      '400normal': 'Coustard-Regular.ttf',
+      '700normal': 'Coustard-Black.ttf',
+    },
+    fallback: 'Georgia, serif',
+  },
+  {
+    name: 'Caveat',
+    role: 'hand',
+    note: 'Handwritten. For a single accent line, not running text. No italic.',
+    faces: {
+      '400normal': 'Caveat-Regular.ttf',
+      '700normal': 'Caveat-Bold.ttf',
+    },
+    fallback: 'cursive',
   },
   {
     name: 'Courier Prime',
@@ -117,7 +151,7 @@ export function stackFor(name) {
 /**
  * The file a given family/weight/style resolves to.
  *
- * Young Serif has one upright weight and no italic. In that case return the
+ * Young Serif, Coustard and Caveat have no italic. In that case return the
  * upright face with a `synthetic` flag: the browser slants it and the PDF
  * writer applies the same shear, so screen and print agree.
  */

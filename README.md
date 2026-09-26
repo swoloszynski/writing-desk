@@ -291,16 +291,19 @@ On anything else nothing swaps and they are simply left and right. Calling the
 fold margin "left" on a page that has no fold is how people put their text
 into the crease.
 
-Seven type families, all open licence, subset to Latin and embedded subset
+Ten type families, all open licence, subset to Latin and embedded subset
 again into the PDF:
 
 | Family | For |
 | --- | --- |
 | Karla | grotesque, the default body face |
 | Work Sans | neutral sans, for captions and page numbers |
+| Nunito Sans | rounded sans, the NHC brand label face |
 | Lora | serif, the default heading and quote face |
 | Literata | reading serif, legible at small sizes |
 | Young Serif | heavy display serif, one upright weight |
+| Coustard | slab display serif, the NHC brand identity face; bold is Black |
+| Caveat | handwritten, for one accent line |
 | Courier Prime | typewriter monospace |
 | Space Mono | fixed pitch, squared shapes |
 
