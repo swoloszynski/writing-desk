@@ -128,11 +128,16 @@ function sizePaperBox() {
  * getBoundingClientRect and getClientRects report the transformed box, so
  * pagination, section ranges, comment highlights and the PDF extractor would
  * all read scaled numbers. Nothing paints in between, so nothing flickers.
+ *
+ * It restores the transform it found, not the current zoom. exportPDF takes
+ * the zoom off for the whole export and calls repaginate() inside it; putting
+ * the zoom back here would make the extractor measure a scaled galley.
  */
 function unzoomed(fn) {
-  if (galleyZoom === 1) return fn();
+  const was = paper.style.transform;
+  if (!was) return fn();
   paper.style.transform = '';
-  try { return fn(); } finally { paper.style.transform = `scale(${galleyZoom})`; }
+  try { return fn(); } finally { paper.style.transform = was; }
 }
 
 /** Size the paper column so the galley sits inside real margins. */
