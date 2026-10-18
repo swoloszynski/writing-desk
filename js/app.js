@@ -1832,6 +1832,13 @@ function bindToolbar() {
 
   $('#add-section').addEventListener('click', addSection);
   $('#add-section-2').addEventListener('click', addSection);
+  // A click on the paper that misses every section, such as in the gap at a
+  // page break or above an empty section, goes to the nearest section.
+  paper.addEventListener('mousedown', e => {
+    if (e.button !== 0 || view !== 'edit' || reviewing) return;
+    if (e.target.closest('.wd-section')) return;
+    if (editor.focusNear(e.clientX, e.clientY)) e.preventDefault();
+  });
   bindPageGrid();
 
   // Format is for looking. Going from a page to the words on it is a

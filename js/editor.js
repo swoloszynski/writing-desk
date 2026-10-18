@@ -258,6 +258,40 @@ export class Editor extends EventTarget {
     sel.addRange(r);
   }
 
+  /**
+   * Put the caret in the section nearest a click that missed every section.
+   *
+   * An empty section is one line tall, and the page break gap and paper
+   * margins around it take no clicks, so getting the caret into it took a
+   * precise click. A click within `reach` px above or below a section, or in
+   * the margin beside it, goes to the nearest point inside it.
+   * @returns {boolean} whether a section took the caret
+   */
+  focusNear(x, y, reach = 60) {
+    let best = null;
+    let dist = Infinity;
+    for (const el of this.flow.querySelectorAll('.wd-section')) {
+      const r = el.getBoundingClientRect();
+      const d = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      if (d < dist) { dist = d; best = { el, r }; }
+    }
+    if (!best || dist > reach) return false;
+
+    const { el, r } = best;
+    const cx = Math.min(Math.max(x, r.left + 1), r.right - 1);
+    const cy = Math.min(Math.max(y, r.top + 1), r.bottom - 1);
+    const hit = document.caretRangeFromPoint?.(cx, cy);
+    el.focus();
+    if (hit && el.contains(hit.startContainer)) {
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(hit);
+    } else {
+      this.focusIn(el, y > r.top + r.height / 2);
+    }
+    return true;
+  }
+
   // --- commands -----------------------------------------------------------
 
   exec(cmd, value = null) {
