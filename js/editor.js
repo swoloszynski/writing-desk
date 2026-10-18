@@ -5,7 +5,7 @@
 // drag, name and start a page with — while the column as a whole is still a
 // single continuous galley for the paginator to slice up.
 
-import { uid, putImage, getImage, imageURL, cachedImageURL } from './doc.js';
+import { uid, putImage, getImage, imageURL, cachedImageURL, withoutImageSrc } from './doc.js';
 import { blocksFromMarkdown, looksLikeMarkdown } from './markdown.js';
 
 const BLOCK_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI',
@@ -146,7 +146,8 @@ export class Editor extends EventTarget {
       el.dataset.id = s.id;
       el.contentEditable = this.readOnly ? 'false' : 'true';
       el.spellcheck = !this.readOnly;
-      el.innerHTML = s.html || '<p><br></p>';
+      // Older saves include a stale src; resolveImages() sets a current one.
+      el.innerHTML = withoutImageSrc(s.html || '') || '<p><br></p>';
       this.flow.appendChild(el);
     }
     this.resolveImages();
@@ -199,7 +200,7 @@ export class Editor extends EventTarget {
     this.normalize();
     for (const el of this.flow.querySelectorAll('.wd-section')) {
       const s = this.doc.sections.find(x => x.id === el.dataset.id);
-      if (s) s.html = el.innerHTML;
+      if (s) s.html = withoutImageSrc(el.innerHTML);
     }
   }
 

@@ -319,6 +319,15 @@ export function parseInert(html) {
   return new DOMParser().parseFromString(html || '', 'text/html').body;
 }
 
+/**
+ * Remove src from every <img>. Pictures are stored by data-zimg; src holds a
+ * blob URL that is valid only for the current page load, so it is not saved.
+ * Relies on innerHTML serialization, which always double-quotes attributes.
+ */
+export function withoutImageSrc(html) {
+  return html.replace(/(<img\b[^>]*?)\s+src="[^"]*"/g, '$1');
+}
+
 // ---------------------------------------------------------------------------
 // The library
 //
