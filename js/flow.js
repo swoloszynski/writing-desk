@@ -34,6 +34,11 @@ export function flowCSS(settings) {
 
   return `
 .wd-flow{
+  /* A margin at the top of the galley must stay inside it. Otherwise it
+     collapses out of the live galley but not out of the page previews, which
+     are absolutely positioned clones, and every preview page is cut that far
+     from the measured page breaks. */
+  display:flow-root;
   width:${m.contentW}px;
   font-family:${stackFor(b.font)};
   font-size:${pt(b.size)};
@@ -67,7 +72,11 @@ ${headingRule('h3', settings.headings.h3)}
    the headings that open a section — which is most of them, and the ones the
    setting is really about. At the top of a page the space becomes sinkage:
    the heading sits lower and the page starts further down, which is what
-   asking for space above a heading means there. */
+   asking for space above a heading means there.
+   The first block sits inside the first section's wrapper, so the selector
+   goes through it. Matching the wrapper alone left the heading's margin in
+   place. */
+.wd-flow > .wd-section:first-child > *:first-child,
 .wd-flow > *:first-child{ margin-top:0; }
 
 .wd-flow ul, .wd-flow ol{
