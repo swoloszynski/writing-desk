@@ -219,6 +219,7 @@ export class Editor extends EventTarget {
 
       p.replaceWith(nested);
     }
+
   }
 
   /** Pull the DOM back into the model. */
@@ -427,6 +428,14 @@ export class Editor extends EventTarget {
       });
     });
 
+    // Copy and cut write the clipboard here rather than leaving it to the
+    // browser. A picture clicked in the galley is outlined but not part of
+    // the text selection, so the browser copied nothing for it. A selection
+    // ending inside a figure was serialized without the figure, or without
+    // the picture.
+    this.flow.addEventListener('copy', e => this._copy(e, false));
+    this.flow.addEventListener('cut', e => this._copy(e, true));
+
     this.flow.addEventListener('drop', e => {
       const file = Array.from(e.dataTransfer?.files || []).find(f => f.type.startsWith('image/'));
       if (!file) return;
@@ -534,6 +543,53 @@ export class Editor extends EventTarget {
     r.setEnd(end.previousElementSibling, end.previousElementSibling.childNodes.length);
     sel.removeAllRanges();
     sel.addRange(r);
+  }
+
+  /**
+   * Put the selection, or the selected picture, on the clipboard.
+   * A selection that starts or ends inside a figure takes the whole figure.
+   */
+  _copy(e, cut) {
+    const sel = getSelection();
+    const fig = this.selectedFigure;
+    let range = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    const figOnly = !!fig && this.flow.contains(fig) &&
+                    (!range || range.collapsed || fig.contains(range.startContainer));
+    if (figOnly) {
+      range = document.createRange();
+      range.selectNode(fig);
+    }
+    if (!range || range.collapsed || !this.flow.contains(range.commonAncestorContainer)) return;
+
+    const startFig = range.startContainer.parentElement?.closest('figure');
+    const endFig = range.endContainer.parentElement?.closest('figure') ||
+                   (range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer.closest('figure') : null);
+    if (startFig && this.flow.contains(startFig)) range.setStartBefore(startFig);
+    if (endFig && this.flow.contains(endFig)) range.setEndAfter(endFig);
+
+    const box = document.createElement('div');
+    box.appendChild(range.cloneContents());
+    // Selection.toString() puts line breaks between blocks; Range.toString()
+    // does not. So the plain text is read through the selection.
+    const original = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const text = sel.toString();
+    if (!cut && original) {
+      sel.removeAllRanges();
+      sel.addRange(original);
+    }
+    e.preventDefault();
+    e.clipboardData.setData('text/html', box.innerHTML);
+    e.clipboardData.setData('text/plain', text);
+    if (!cut || this.readOnly) return;
+
+    if (figOnly) {
+      this.removeFigure(fig);
+      return;
+    }
+    document.execCommand('delete');
+    this.after();
   }
 
   /** The top-level block inside a section that holds `node`. */
