@@ -447,6 +447,33 @@ export class Editor extends EventTarget {
       });
     });
 
+    // Enter at the end of a heading. The browser carries inline formatting
+    // at the caret, such as <b> or a span with a font size, into the new
+    // paragraph, so the line read as body text but looked like the heading.
+    // A clean paragraph is inserted instead.
+    this.flow.addEventListener('beforeinput', e => {
+      if (e.inputType !== 'insertParagraph') return;
+      const sel = getSelection();
+      if (!sel?.isCollapsed) return;
+      const block = this._blockAt(sel.anchorNode);
+      if (!block || !/^H[1-6]$/.test(block.tagName)) return;
+      const rest = document.createRange();
+      rest.selectNodeContents(block);
+      rest.setStart(sel.anchorNode, sel.anchorOffset);
+      if (rest.toString().length) return;
+
+      e.preventDefault();
+      const p = document.createElement('p');
+      p.appendChild(document.createElement('br'));
+      block.after(p);
+      const caret = document.createRange();
+      caret.setStart(p, 0);
+      caret.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(caret);
+      this.after();
+    });
+
     // Copy and cut write the clipboard here rather than leaving it to the
     // browser. A picture clicked in the galley is outlined but not part of
     // the text selection, so the browser copied nothing for it. A selection
