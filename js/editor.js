@@ -383,7 +383,7 @@ export class Editor extends EventTarget {
                   : textToHtml(text);
 
       this._adoptImages(clean).then(adopted => {
-        document.execCommand('insertHTML', false, adopted);
+        this._insertPasted(adopted);
         this.after();
         // sanitize() strips src, so pasted pictures need their blob URLs set.
         this.resolveImages();
@@ -412,6 +412,101 @@ export class Editor extends EventTarget {
         if (k === 'enter') { e.preventDefault(); this.insertHTML('<div class="wd-break"></div><p><br></p>'); }
       }
     });
+  }
+
+  /**
+   * Insert sanitized HTML from a paste without changing any block's type.
+   *
+   * insertHTML merges the first and last pasted blocks into the block around
+   * the caret. Pasting paragraphs into a heading made them part of the
+   * heading, and Chrome added inline font-weight and font-size to hide it.
+   * So a paste of one paragraph is inserted as inline content, and takes the
+   * type of the block it lands in. A paste of several blocks replaces the
+   * block at the caret with its own two halves around the pasted blocks.
+   * Replacing the contents of a paragraph this way keeps every block intact,
+   * so a heading is first turned into a paragraph. All steps go through
+   * execCommand, so undo still works.
+   */
+  _insertPasted(html) {
+    const sel = getSelection();
+    if (!sel?.rangeCount) return this._insertWithoutStyles(html);
+    this._trimSelection(sel);
+
+    const blocks = Array.from(new DOMParser().parseFromString(html, 'text/html').body.children);
+    if (blocks.length === 1 && blocks[0].tagName === 'P') {
+      return this._insertWithoutStyles(blocks[0].innerHTML);
+    }
+
+    if (!sel.isCollapsed) document.execCommand('delete');
+    let block = this._blockAt(sel.anchorNode);
+    if (!block || !/^(P|H1|H2|H3)$/.test(block.tagName)) return this._insertWithoutStyles(html);
+
+    const tag = block.tagName.toLowerCase();
+    const caret = sel.getRangeAt(0);
+    const half = (atStart) => {
+      const r = document.createRange();
+      r.selectNodeContents(block);
+      if (atStart) r.setEnd(caret.startContainer, caret.startOffset);
+      else r.setStart(caret.startContainer, caret.startOffset);
+      const box = document.createElement('div');
+      box.appendChild(r.cloneContents());
+      return /\S/.test(box.textContent) ? `<${tag}>${box.innerHTML}</${tag}>` : '';
+    };
+    const replacement = half(true) + html + half(false);
+
+    if (tag !== 'p') {
+      document.execCommand('formatBlock', false, 'p');
+      block = this._blockAt(sel.anchorNode);
+    }
+    const all = document.createRange();
+    all.selectNodeContents(block);
+    sel.removeAllRanges();
+    sel.addRange(all);
+    this._insertWithoutStyles(replacement);
+  }
+
+  /**
+   * insertHTML, then remove the inline styles Chrome adds to make pasted text
+   * look the way it did at its source. The settings panel sets the type, so
+   * those styles would override it.
+   */
+  _insertWithoutStyles(html) {
+    const before = new Set(this.flow.querySelectorAll('[style]'));
+    document.execCommand('insertHTML', false, html);
+    for (const el of this.flow.querySelectorAll('[style]')) {
+      if (before.has(el) || el.tagName === 'FIGURE') continue;
+      if (el.tagName === 'SPAN' || el.tagName === 'FONT') el.replaceWith(...el.childNodes);
+      else el.removeAttribute('style');
+    }
+  }
+
+  /**
+   * A triple-click selects a paragraph up to the start of the next block.
+   * Pasting over that would merge the next block into the paste, so the
+   * selection is ended at the end of the paragraph instead.
+   */
+  _trimSelection(sel) {
+    const r = sel.getRangeAt(0);
+    if (r.collapsed) return;
+    const end = this._blockAt(r.endContainer);
+    if (!end || end === this._blockAt(r.startContainer)) return;
+    const lead = document.createRange();
+    lead.selectNodeContents(end);
+    lead.setEnd(r.endContainer, r.endOffset);
+    if (lead.toString() !== '' || !end.previousElementSibling) return;
+    r.setEnd(end.previousElementSibling, end.previousElementSibling.childNodes.length);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+
+  /** The top-level block inside a section that holds `node`. */
+  _blockAt(node) {
+    let el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    while (el && !el.parentElement?.classList.contains('wd-section')) {
+      if (el.classList?.contains('wd-section') || el === this.flow) return null;
+      el = el.parentElement;
+    }
+    return el || null;
   }
 
   /**
