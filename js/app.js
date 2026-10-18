@@ -275,19 +275,32 @@ function sectionPageRange(id) {
  * does not fold and so is never padded in the first place.
  */
 function backCoverFrom() {
-  const id = doc.settings.press.backCover;
-  if (!id || !Doc.isFolded(doc.settings)) return null;
-  if (!doc.sections.some(s => s.id === id)) return null;
-  return sectionPageRange(id)?.[0] ?? null;
+  const id = pinnedBackCover();
+  return id ? sectionPageRange(id)?.[0] ?? null : null;
 }
 
-/** Hold the pinned back cover at the end, where a back cover has to be. */
-function holdBackCoverLast() {
+/**
+ * The id of the pinned back cover, or '' when the pin has no effect.
+ *
+ * The pin applies only on paper that folds. The Back cover control is shown
+ * only then, so a pin left over from a booklet would otherwise hold a section
+ * at the end with no visible setting to explain it. The stored pin is kept,
+ * and applies again if the paper is changed back to one that folds.
+ */
+function pinnedBackCover() {
   const id = doc.settings.press.backCover;
-  if (!id) return;
+  if (!id || !Doc.isFolded(doc.settings)) return '';
+  return doc.sections.some(s => s.id === id) ? id : '';
+}
+
+/** Move the pinned back cover to the end. Returns true if it moved. */
+function holdBackCoverLast() {
+  const id = pinnedBackCover();
+  if (!id) return false;
   const i = doc.sections.findIndex(s => s.id === id);
-  if (i < 0 || i === doc.sections.length - 1) return;
+  if (i === doc.sections.length - 1) return false;
   doc.sections.push(doc.sections.splice(i, 1)[0]);
+  return true;
 }
 
 function paintSectionPages() {
@@ -441,7 +454,7 @@ function addSection() {
   };
   // A section added while a back cover is pinned belongs in front of it: the
   // whole point of the pin is that nothing gets written after the cover.
-  const back = doc.settings.press.backCover;
+  const back = pinnedBackCover();
   const at = back ? doc.sections.findIndex(x => x.id === back) : -1;
   if (at >= 0) doc.sections.splice(at, 0, s);
   else doc.sections.push(s);
@@ -2298,6 +2311,11 @@ function onSettingChange(field) {
   // folded is simply wrong.
   if (field?.path === 'paper') {
     if (!Doc.isFolded(doc.settings)) doc.settings.press.layout = 'reading';
+    // Paper that folds makes a stored back cover pin apply again.
+    if (holdBackCoverLast()) {
+      renderGalley();
+      renderSectionLists();
+    }
     buildRail();
     paintExportMode();
   }
