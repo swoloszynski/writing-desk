@@ -192,7 +192,8 @@ export function extract(flow) {
     const asc = ascentFor(st.family, st.size, st.weight, st.italic);
     items.push({
       type: 'text',
-      x: liRect.left - ox - LIST_INDENT_EM * st.size,
+      // The list's padding, not a constant: it widens for long lists.
+      x: liRect.left - ox - (parseFloat(getComputedStyle(list).paddingLeft) || LIST_INDENT_EM * st.size),
       baseline: first.top - oy + asc,
       text,
       family: st.family, size: st.size, weight: st.weight, italic: st.italic,

@@ -79,16 +79,24 @@ ${headingRule('h3', settings.headings.h3)}
 .wd-flow > .wd-section:first-child > *:first-child,
 .wd-flow > *:first-child{ margin-top:0; }
 
+/* The marker sits in the list's left padding. A number wider than that
+   padding wrapped onto a second line and overlapped the next marker, so the
+   padding widens for lists of ten and of a hundred items, and the marker
+   does not wrap. extract.js reads the padding to place markers in the PDF. */
 .wd-flow ul, .wd-flow ol{
+  --wd-list-indent:${LIST_INDENT_EM}em;
   margin:0 0 ${b.paraSpace}em;
-  padding:0 0 0 ${LIST_INDENT_EM}em;
+  padding:0 0 0 var(--wd-list-indent);
   list-style:none;
 }
+.wd-flow ol:has(> li:nth-child(10)){ --wd-list-indent:${(LIST_INDENT_EM + 0.6).toFixed(2)}em; }
+.wd-flow ol:has(> li:nth-child(100)){ --wd-list-indent:${(LIST_INDENT_EM + 1.2).toFixed(2)}em; }
 .wd-flow li{ position:relative; margin:0 0 .18em; text-indent:0; }
 .wd-flow li::before{
-  position:absolute; left:-${LIST_INDENT_EM}em; top:0;
-  width:${LIST_INDENT_EM}em;
+  position:absolute; left:calc(-1 * var(--wd-list-indent)); top:0;
+  width:var(--wd-list-indent);
   display:inline-block;
+  white-space:nowrap;
   font-variant-numeric:tabular-nums;
   content:'\\2022';
 }
