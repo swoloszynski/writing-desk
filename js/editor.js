@@ -56,7 +56,30 @@ export function sanitize(html) {
         continue;
       }
 
-      if (!BLOCK_TAGS.has(tag) && !INLINE_KEEP.has(tag)) {
+      // Google Docs wraps a whole copy in <b style="font-weight:normal">, and
+      // marks bold and italic text with spans. Styles are stripped below, so
+      // read them first: drop the non-bold <b>, and turn styled spans into
+      // <b> and <i>.
+      const weight = child.style?.fontWeight || '';
+      const bold = weight === 'bold' || parseInt(weight, 10) >= 600;
+      const notBold = weight === 'normal' || parseInt(weight, 10) < 600;
+      const unwrap = (!BLOCK_TAGS.has(tag) && !INLINE_KEEP.has(tag)) ||
+                     ((tag === 'B' || tag === 'STRONG') && notBold);
+
+      if (tag === 'SPAN' && (bold || child.style.fontStyle === 'italic')) {
+        const outer = inert.createElement(bold ? 'b' : 'i');
+        let inner = outer;
+        if (bold && child.style.fontStyle === 'italic') {
+          inner = inert.createElement('i');
+          outer.appendChild(inner);
+        }
+        while (child.firstChild) inner.appendChild(child.firstChild);
+        child.replaceWith(outer);
+        walk(inner);
+        continue;
+      }
+
+      if (unwrap) {
         // Unwrap rather than delete, so the words inside survive.
         const frag = inert.createDocumentFragment();
         while (child.firstChild) frag.appendChild(child.firstChild);
