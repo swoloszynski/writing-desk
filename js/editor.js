@@ -151,6 +151,9 @@ export class Editor extends EventTarget {
     // commented on. The sections still render and still measure — the page
     // previews and the PDF depend on that — they just cannot be typed into.
     this.readOnly = false;
+    // Set by the app: async (prev, cur) => boolean, asked before Backspace at
+    // the top of a section merges it into the one before.
+    this.confirmMerge = null;
     this._bind();
   }
 
@@ -554,12 +557,26 @@ export class Editor extends EventTarget {
     e.preventDefault();
     const prev = this.doc.sections[idx - 1];
     const cur = this.doc.sections[idx];
-    this.harvest();
-    prev.html = (prev.html || '') + (cur.html || '');
-    this.doc.sections.splice(idx, 1);
-    this.render();
-    const el = this.flow.querySelector(`[data-id="${prev.id}"]`);
-    this.focusIn(el, true);
+    const caret = sel.getRangeAt(0).cloneRange();
+
+    // A merge cannot be undone, and it drops the section's name and its
+    // "Start on a new page" setting, so the app is asked first.
+    Promise.resolve(this.confirmMerge ? this.confirmMerge(prev, cur) : true).then(ok => {
+      if (!ok) {
+        sec.focus();
+        const s = getSelection();
+        s.removeAllRanges();
+        s.addRange(caret);
+        return;
+      }
+      this.harvest();
+      prev.html = (prev.html || '') + (cur.html || '');
+      const at = this.doc.sections.indexOf(cur);
+      if (at >= 0) this.doc.sections.splice(at, 1);
+      this.render();
+      const el = this.flow.querySelector(`[data-id="${prev.id}"]`);
+      this.focusIn(el, true);
+    });
   }
 }
 

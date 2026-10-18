@@ -79,6 +79,12 @@ const paperBox = $('#paper-box');
 const seams = $('#seams');
 const marks = $('#marks');
 const editor = new Editor(flow, doc);
+editor.confirmMerge = (prev, cur) => ask({
+  title: `Merge “${cur.name}” into “${prev.name}”?`,
+  body: `The text of “${cur.name}” is added to the end of “${prev.name}”, and ` +
+        `“${cur.name}” is removed from the section list. There is no undo.`,
+  yes: 'Merge',
+});
 
 // ---------------------------------------------------------------------------
 // Layout
