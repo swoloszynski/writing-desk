@@ -570,12 +570,17 @@ export class Editor extends EventTarget {
         return;
       }
       this.harvest();
+      // Comments are anchored by character offset in their section, so the
+      // app moves cur's comments along by the length of prev's text.
+      const shift = new DOMParser().parseFromString(prev.html || '', 'text/html')
+        .body.textContent.length;
       prev.html = (prev.html || '') + (cur.html || '');
       const at = this.doc.sections.indexOf(cur);
       if (at >= 0) this.doc.sections.splice(at, 1);
       this.render();
       const el = this.flow.querySelector(`[data-id="${prev.id}"]`);
       this.focusIn(el, true);
+      this.dispatchEvent(new CustomEvent('merge', { detail: { prev, cur, shift } }));
     });
   }
 }

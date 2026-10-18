@@ -2921,6 +2921,22 @@ async function boot() {
     'and it cannot carry pictures. The file can.';
 
   editor.addEventListener('change', e => schedule(e.detail));
+  // A merged section is gone from the model; everything that lists or points
+  // at sections has to follow, as it does when a section is deleted.
+  editor.addEventListener('merge', e => {
+    const { prev, cur, shift } = e.detail;
+    if (doc.settings.press.backCover === cur.id) doc.settings.press.backCover = '';
+    doc.comments.forEach(c => {
+      if (c.sectionId !== cur.id) return;
+      c.sectionId = prev.id;
+      c.start += shift;
+      c.end += shift;
+    });
+    renderSectionLists();
+    buildRail();
+    paintThreads();
+    save();
+  });
   renderGalley();
   renderSectionLists();
   paintThreads();
