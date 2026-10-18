@@ -197,9 +197,7 @@ function repaginate() {
 
 function wordCount() {
   return doc.sections.reduce((n, s) => {
-    const probe = document.createElement('div');
-    probe.innerHTML = s.html;
-    return n + countWords(probe.textContent);
+    return n + countWords(Doc.parseInert(s.html).textContent);
   }, 0);
 }
 
@@ -342,8 +340,7 @@ function sectionCard(s, { where = 'edit' } = {}) {
   el.querySelector('.sec-del').addEventListener('click', async e => {
     e.stopPropagation();
     if (doc.sections.length === 1) return toast('A document needs at least one section.');
-    const words = countWords(new DOMParser()
-      .parseFromString(s.html, 'text/html').body.textContent);
+    const words = countWords(Doc.parseInert(s.html).textContent);
     const ok = await ask({
       title: `Delete “${s.name}”?`,
       body: `${words} word${words === 1 ? '' : 's'} go with it, and there is no undo. ` +
@@ -1510,11 +1507,9 @@ function exportMarkdown() {
 
 /** Markdown with the markup taken back out: the words and nothing else. */
 function toPlainText() {
-  const probe = document.createElement('div');
   const out = [];
   for (const s of doc.sections) {
-    probe.innerHTML = s.html;
-    for (const block of probe.children) {
+    for (const block of Doc.parseInert(s.html).children) {
       if (block.tagName === 'FIGURE') {
         const cap = block.querySelector('figcaption')?.textContent.trim();
         out.push(cap ? `[picture: ${cap}]` : '[picture]');
@@ -1554,13 +1549,14 @@ async function exportHTML() {
   const body = document.createElement('div');
   body.className = 'wd-flow';
   for (const s of doc.sections) {
-    const sec = document.createElement('section');
-    sec.innerHTML = s.html;
-    sec.querySelectorAll('img[data-zimg]').forEach(img => {
+    const parsed = Doc.parseInert(s.html);
+    parsed.querySelectorAll('img[data-zimg]').forEach(img => {
       const rec = images[img.dataset.zimg];
       if (rec) img.setAttribute('src', rec.data);
       else img.closest('figure')?.remove();
     });
+    const sec = document.createElement('section');
+    sec.append(...parsed.childNodes);
     body.appendChild(sec);
   }
 
@@ -2493,12 +2489,10 @@ function tiltOf(id) {
  * starts by repeating it tells you nothing you did not have a moment ago.
  */
 function peekAt(d) {
-  const probe = document.createElement('div');
   const out = [];
   let length = 0;
   for (const section of d.sections) {
-    probe.innerHTML = section.html;
-    for (const block of probe.children) {
+    for (const block of Doc.parseInert(section.html).children) {
       if (/^H[1-6]$/.test(block.tagName)) continue;
       const text = block.textContent.replace(/\s+/g, ' ').trim();
       if (!text) continue;

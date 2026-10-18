@@ -300,13 +300,23 @@ export function adoptShape(saved) {
 /** Words in a document, counted off its own markup. Stored so the desk can
  *  show a count without parsing every document it lists. */
 export function wordsIn(doc) {
-  const probe = document.createElement('div');
   let n = 0;
   for (const section of doc.sections) {
-    probe.innerHTML = section.html;
-    n += (probe.textContent.match(/\S+/g) || []).length;
+    n += (parseInert(section.html).textContent.match(/\S+/g) || []).length;
   }
   return n;
+}
+
+/**
+ * Parse stored section HTML without loading anything.
+ *
+ * Markup assigned to innerHTML on an element of the live page, attached or
+ * not, starts loading every <img src> in it. Saved HTML can hold blob URLs
+ * from an earlier visit, which fail and log an error each time. A document
+ * from DOMParser loads nothing and runs no scripts.
+ */
+export function parseInert(html) {
+  return new DOMParser().parseFromString(html || '', 'text/html').body;
 }
 
 // ---------------------------------------------------------------------------
@@ -666,10 +676,9 @@ export async function dataURLToBlob(url) {
 
 export function referencedImages(doc) {
   const used = new Set();
-  const probe = document.createElement('div');
   for (const s of doc.sections) {
-    probe.innerHTML = s.html;
-    probe.querySelectorAll('img[data-zimg]').forEach(img => used.add(img.dataset.zimg));
+    parseInert(s.html).querySelectorAll('img[data-zimg]')
+      .forEach(img => used.add(img.dataset.zimg));
   }
   return used;
 }
