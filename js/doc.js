@@ -418,11 +418,24 @@ export async function writeDocument(doc, opts) {
   return record;
 }
 
-/** A document and everything filed under it. There is no undo. */
+/**
+ * A document and every picture filed under it that no other document uses.
+ * There is no undo.
+ *
+ * A fork leaves two documents pointing at the same image ids, filed under
+ * only one of them. A picture another document still uses is filed under that
+ * document instead of being deleted, so its own garbage collection takes over.
+ */
 export async function deleteDocument(id) {
   await tx('documents', 'readwrite', store => store.delete(id));
+  const owner = new Map();
+  for (const d of await listDocuments()) {
+    for (const img of referencedImages(d)) if (!owner.has(img)) owner.set(img, d.id);
+  }
   for (const rec of await allImages()) {
-    if (rec.docId === id) await deleteImage(rec.id);
+    if (rec.docId !== id) continue;
+    if (owner.has(rec.id)) await putImage(rec.id, { ...rec.value, docId: owner.get(rec.id) });
+    else await deleteImage(rec.id);
   }
 }
 
