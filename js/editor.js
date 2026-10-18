@@ -5,7 +5,7 @@
 // drag, name and start a page with — while the column as a whole is still a
 // single continuous galley for the paginator to slice up.
 
-import { uid, putImage, imageURL, cachedImageURL } from './doc.js';
+import { uid, putImage, getImage, imageURL, cachedImageURL } from './doc.js';
 import { blocksFromMarkdown, looksLikeMarkdown } from './markdown.js';
 
 const BLOCK_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI',
@@ -358,8 +358,12 @@ export class Editor extends EventTarget {
                   : html ? sanitize(html)
                   : textToHtml(text);
 
-      document.execCommand('insertHTML', false, clean);
-      this.after();
+      this._adoptImages(clean).then(adopted => {
+        document.execCommand('insertHTML', false, adopted);
+        this.after();
+        // sanitize() strips src, so pasted pictures need their blob URLs set.
+        this.resolveImages();
+      });
     });
 
     this.flow.addEventListener('drop', e => {
@@ -384,6 +388,26 @@ export class Editor extends EventTarget {
         if (k === 'enter') { e.preventDefault(); this.insertHTML('<div class="wd-break"></div><p><br></p>'); }
       }
     });
+  }
+
+  /**
+   * Copy pasted pictures that belong to another document into this one.
+   *
+   * Images are filed under one document, and deleting that document deletes
+   * them. A picture pasted from another document gets a new id filed under
+   * this one, so deleting the source does not remove it here.
+   */
+  async _adoptImages(html) {
+    if (!html.includes('data-zimg')) return html;
+    const box = new DOMParser().parseFromString(html, 'text/html').body;
+    for (const img of box.querySelectorAll('img[data-zimg]')) {
+      const rec = await getImage(img.dataset.zimg);
+      if (!rec || rec.docId === this.doc.id) continue;
+      const id = uid('img');
+      await putImage(id, { ...rec, docId: this.doc.id });
+      img.dataset.zimg = id;
+    }
+    return box.innerHTML;
   }
 
   /** Backspace at the very top of a section folds it into the one above. */
