@@ -251,15 +251,69 @@ export function renderSheets(flow, offsets, settings, scale, backCoverFrom = nul
   return { frag, sheets: sheets.length, padded };
 }
 
-/** Seam markers over the editor, showing where each page ends. */
-export function renderSeams(layer, offsets, settings) {
+const inkCache = new Map();
+let inkCtx = null;
+
+/**
+ * Where the letters of a block's text sit relative to the top of its line
+ * box: the top of the ascenders and the bottom of the descenders, in px.
+ * Measured with canvas, which reports the font's actual glyph extents.
+ */
+function inkOf(el) {
+  const cs = getComputedStyle(el);
+  const key = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  if (inkCache.has(key)) return inkCache.get(key);
+  inkCtx ??= document.createElement('canvas').getContext('2d');
+  inkCtx.font = key;
+  const family = cs.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
+  const baseline = ascentOf(family, parseFloat(cs.fontSize),
+                            parseInt(cs.fontWeight, 10) || 400, cs.fontStyle !== 'normal');
+  const ink = {
+    top: baseline - inkCtx.measureText('bdfhklAHT').actualBoundingBoxAscent,
+    bottom: baseline + inkCtx.measureText('gjpqy').actualBoundingBoxDescent,
+  };
+  inkCache.set(key, ink);
+  return ink;
+}
+
+/**
+ * Where to draw the seam for the page starting at `off`.
+ *
+ * `off` is the top of the first line box on the page. A line box has space
+ * above the letters and little below the descenders, so a seam drawn at `off`
+ * touched the descenders of the line above. It is drawn halfway between the
+ * descenders above and the ascenders below instead. A page started by a
+ * forced break keeps its seam at `off`, because the break's own rule fills
+ * the gap above it.
+ */
+function seamY(off, atoms) {
+  if (atoms.some(a => a.kind === 'break' && Math.abs(a.bottom - off) < 0.5)) return off;
+  let prev = null;
+  let next = null;
+  for (const a of atoms) {
+    if (a.kind === 'break') continue;
+    if (a.bottom <= off + 0.5 && (!prev || a.bottom > prev.bottom)) prev = a;
+    if (a.top >= off - 0.5 && (!next || a.top < next.top)) next = a;
+  }
+  if (!prev || !next) return off;
+  const lower = next.kind === 'atomic' ? next.top : next.top + inkOf(next.el).top;
+  const upper = prev.kind === 'atomic' ? prev.bottom : prev.top + inkOf(prev.el).bottom;
+  return upper < lower ? (upper + lower) / 2 : off;
+}
+
+/**
+ * Seam markers over the editor, showing where each page ends.
+ * @param atoms line boxes from paginate(), used to place each seam in the
+ *   gap between lines. Call with the galley unzoomed.
+ */
+export function renderSeams(layer, offsets, settings, atoms = []) {
   const m = metrics(settings);
   layer.innerHTML = '';
   offsets.forEach((off, i) => {
     if (i === 0) return;
     const seam = document.createElement('div');
     seam.className = 'wd-seam';
-    seam.style.top = `${off}px`;
+    seam.style.top = `${seamY(off, atoms)}px`;
     seam.innerHTML = `<span class="wd-seam-label">page ${i + 1}</span>`;
     layer.appendChild(seam);
   });

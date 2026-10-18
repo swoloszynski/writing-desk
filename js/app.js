@@ -187,10 +187,11 @@ function schedule({ structural = false } = {}) {
  */
 function repaginate() {
   const m = Doc.metrics(doc.settings);
-  offsets = unzoomed(() => paginate(flow, m.contentH).offsets);
+  const laid = unzoomed(() => paginate(flow, m.contentH));
+  offsets = laid.offsets;
   sizePaperBox();
 
-  renderSeams(seams, offsets, doc.settings);
+  unzoomed(() => renderSeams(seams, offsets, doc.settings, laid.atoms));
   paintMarks();
   paintStats();
   paintSectionPages();
