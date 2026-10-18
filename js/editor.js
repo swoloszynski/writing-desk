@@ -220,6 +220,25 @@ export class Editor extends EventTarget {
       p.replaceWith(nested);
     }
 
+    // A picture outside a figure has no width rule and shows at its natural
+    // size, wider than the page. A native drag or a paste from another
+    // application can leave one inline in a paragraph. It is given a figure,
+    // placed after the block it was in.
+    for (const img of [...this.flow.querySelectorAll('img[data-zimg]')]) {
+      if (img.closest('figure')) continue;
+      const block = this._blockAt(img);
+      if (!block) continue;
+      const fig = document.createElement('figure');
+      fig.dataset.align = 'center';
+      fig.style.width = '70%';
+      block.after(fig);
+      fig.appendChild(img);
+      if (!block.textContent.trim() && !block.querySelector('img')) block.remove();
+    }
+    // A figure whose picture has been moved out of it is an empty box.
+    for (const fig of [...this.flow.querySelectorAll('figure')]) {
+      if (!fig.querySelector('img')) fig.remove();
+    }
   }
 
   /** Pull the DOM back into the model. */
@@ -436,7 +455,28 @@ export class Editor extends EventTarget {
     this.flow.addEventListener('copy', e => this._copy(e, false));
     this.flow.addEventListener('cut', e => this._copy(e, true));
 
+    // A picture dragged within the galley. Left to the browser, the <img>
+    // moved without its <figure> and landed inline in a paragraph at its
+    // natural size. The whole figure is moved between blocks instead.
+    this.flow.addEventListener('dragstart', e => {
+      const fig = e.target.closest?.('figure');
+      if (!fig || !this.flow.contains(fig) || this.readOnly) return;
+      this._dragFigure = fig;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+    });
+    this.flow.addEventListener('dragend', () => { this._dragFigure = null; });
+    this.flow.addEventListener('dragover', e => {
+      if (this._dragFigure) e.preventDefault();
+    });
+
     this.flow.addEventListener('drop', e => {
+      if (this._dragFigure) {
+        e.preventDefault();
+        this._dropFigure(this._dragFigure, e.clientY);
+        this._dragFigure = null;
+        return;
+      }
       const file = Array.from(e.dataTransfer?.files || []).find(f => f.type.startsWith('image/'));
       if (!file) return;
       e.preventDefault();
@@ -589,6 +629,24 @@ export class Editor extends EventTarget {
       return;
     }
     document.execCommand('delete');
+    this.after();
+  }
+
+  /** Move a figure to the block boundary nearest `y`. */
+  _dropFigure(fig, y) {
+    let best = null;
+    let dist = Infinity;
+    for (const block of this.flow.querySelectorAll('.wd-section > *')) {
+      if (block === fig) continue;
+      const r = block.getBoundingClientRect();
+      const d = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      if (d < dist) { dist = d; best = { block, r }; }
+    }
+    if (!best) return;
+    const { block, r } = best;
+    if (y < r.top + r.height / 2) block.before(fig);
+    else block.after(fig);
+    this.selectFigure(fig);
     this.after();
   }
 
