@@ -536,10 +536,17 @@ export class Editor extends EventTarget {
     const sec = this.sectionAt(sel.anchorNode);
     if (!sec) return;
 
+    // Only at the start of the first block. Checking for text alone treated
+    // the start of any block below an empty paragraph or an uncaptioned
+    // picture as the top of the section, so deleting that empty line merged
+    // the whole section into the one before it.
+    const atTop = sel.anchorNode === sec ? sel.anchorOffset === 0
+                                         : this._blockAt(sel.anchorNode) === sec.firstElementChild;
+    if (!atTop) return;
     const probe = document.createRange();
     probe.selectNodeContents(sec);
     probe.setEnd(sel.anchorNode, sel.anchorOffset);
-    if (probe.toString().length !== 0) return;
+    if (probe.toString().length !== 0 || probe.cloneContents().querySelector('img, hr')) return;
 
     const idx = this.doc.sections.findIndex(s => s.id === sec.dataset.id);
     if (idx <= 0) return;
