@@ -447,7 +447,11 @@ function renderSectionLists() {
   paintSectionPages();
 }
 
+/** The section last marked active: the one with the caret, or the card last clicked. */
+let activeSectionId = null;
+
 function markActive(id) {
+  activeSectionId = id;
   $$('.sec').forEach(el => el.classList.toggle('is-active', el.dataset.id === id));
 }
 
@@ -458,16 +462,20 @@ function addSection() {
     startsNewPage: true,
     html: '<p><br></p>',
   };
-  // A section added while a back cover is pinned belongs in front of it: the
-  // whole point of the pin is that nothing gets written after the cover.
-  const back = pinnedBackCover();
-  const at = back ? doc.sections.findIndex(x => x.id === back) : -1;
-  if (at >= 0) doc.sections.splice(at, 0, s);
-  else doc.sections.push(s);
+  // The new section goes after the active one, or at the end when none is
+  // active. A section added while a back cover is pinned belongs in front of
+  // it: the whole point of the pin is that nothing gets written after the
+  // cover.
+  const active = doc.sections.findIndex(x => x.id === activeSectionId);
+  let at = active >= 0 ? active + 1 : doc.sections.length;
+  const back = doc.sections.findIndex(x => x.id === pinnedBackCover());
+  if (back >= 0) at = Math.min(at, back);
+  doc.sections.splice(at, 0, s);
   renderGalley();
   renderSectionLists();
   buildRail();
   editor.focusIn(flow.querySelector(`.wd-section[data-id="${s.id}"]`));
+  markActive(s.id);
 }
 
 // ---------------------------------------------------------------------------
